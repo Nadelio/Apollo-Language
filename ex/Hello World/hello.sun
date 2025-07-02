@@ -1,0 +1,6 @@
+use stdlib.print;
+
+#[entry]
+public fn main() -> Unit {
+  print("Hello World!");
+}

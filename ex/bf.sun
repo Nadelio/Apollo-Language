@@ -1,0 +1,43 @@
+use stdlib;
+use Error;
+
+class InvalidInstruction(instr: string, position: u32) from Error { // classes have an implicit constructor
+    const instr: string; // instance variables are private by default
+    const position: u32; // Error has a position parameter already, but in this case you can override it
+
+    fn panic() -> string { // functions are public by default
+        return "Invalid Instruction: {self.instr} @ {self.position}"; // use self.<...> to access instance variables or class functions
+    }
+}
+
+// mark bf() as the entry point
+#[entry]
+public fn bf() -> Unit {
+    const progLen: u8 = 255;
+    var prog: string[progLen] = new; // creates a string of length 255, it is filled with \0 characters
+
+    prog = readIn().truncate(progLen); // read in a string and truncate it to the length of progLen (255)
+
+    const cmds: [char] = prog.slice(); // slice the string into individual characters and put it in an array
+
+    // interpreter variables
+    var mem: [u8; 256] = new; // create an array of u8's with length 256, automatically initialize it to 0 
+    var ptr: u8 = 0;
+    var index: u8 = 0;
+
+    cmds.foreach { |const cmd: char| // foreach takes in a lambda that takes in an immutable character value, trailing lambda syntactic sugar
+      match cmd { // pattern matching
+        '>' -> ptr++;
+        '<' -> ptr--;
+        '+' -> mem[ptr]++;
+        '-' -> mem[ptr]--;
+        '.' -> print(mem[ptr]);
+        ',' -> {
+            temp: char = readIn().slice()[0];
+            mem[ptr] = temp as u8; // cast character to u8
+        }
+        _ -> panic new InvalidInstruction(cmd as string, index); // error
+      }
+      index++;
+    }
+}

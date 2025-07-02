@@ -1,0 +1,55 @@
+use stdlib.random;
+use stdlib.math;
+
+extend String {
+  public fn parseInt(const str: string) -> u32 {
+    var num: u32 = 0;
+    str.chars().foreach { |const c: char|
+      if(c.isDigit()) { // using the UTF-16 character format
+        num += (c as u16) - 48;
+        num *= 10;
+      } else { panic new IllegalArgument("{str} could not be parsed into an integer."); }
+    }
+    return num;
+  }
+}
+
+extend Char { fn isDigit() -> bool { return self.value >= '0'.value || self.value <= '9'.value; } }
+
+// the two above functions will be included in the stdlib as part of the string and char classes
+
+const min: u8 = 1;
+const max: u8 = 100;
+
+const maxTries: u8 = ceil(log2(max - min)) as u8; // casting a u32 to a u8 just cuts off the 3 most significant bytes
+// stdlib.math.ceil(fXX) -> u32
+// stdlib.math.log2() -> f64
+// log2() has several overloads for floats, ints, and uints
+
+fn guessAgain() -> u8{
+  {
+    const guess: string = prompt("Input a number between {min} and {max}.\n> ").strip().truncate(3); // truncate to 3 characters b/c max number is 3 digits long
+    return guess.parseInt() as u8; // parse the string for a u32 then cast to a u8
+  } catch(IllegalArgument e) {
+    println("Could not parse an integer from your answer.");
+    retry;
+  } // rerun the above scope
+}
+
+#[entry]
+public fn guess() -> Unit {
+  const number: u8 = random(min, max);
+  var guessNum: u8 = 0;
+  var score: u8 = 0;
+  
+  guessNum = guessAgain();
+
+  while(guessNum != number) {
+    if(guessNum < number) { println("Too low!"); }
+    else if (guessNum > number) { println("Too high!"); }
+    guessNum = guessAgain();
+    score++;
+  }
+
+  println("Correct! The number is {number}!\nYour score is {score}.");
+}

@@ -1,0 +1,57 @@
+use stdlib;
+use threads;
+
+class Player(health: u8, hunger: u8, energy: u8, score: u32) {
+    var health: u8;
+    var hunger: u8;
+    var energy: u8;
+    var score: u32;
+    
+    unary operator --() -> Unit { // define custom decrement operator for Player class
+        self.health--;
+        self.hunger--;
+        self.energy--;
+    }
+
+    fn reset() -> Unit { self = new (100, 100, 50, 0); }
+    fn eat() -> Unit { self.hunger += 2; }
+    fn rest() -> Unit { self.energy += 2; }
+    fn hp() -> u8 { return self.health; }
+}
+
+public fn deteriorate(player: @Player, thread: @Thread) -> Unit {
+    while (true) {
+        player--;
+        player.score++;
+        thread.sleep(1000); // pause the given thread for 1 second
+    }
+}
+
+fn die(player: @Player) -> Unit {
+    print("You died! Your score is: {self.score}");
+    if(prompt("Do you want to retry? Y/N").truncate(1).toLowercase()[0] == "y") {
+        process(player)
+    } else { exit(0); }
+}
+
+fn process(player: @Player) -> Unit {
+  player.reset();
+  while(player.health > 0) {
+    const action: char = prompt("Press R to rest, E to eat").truncate(1).toLowercase()[0];
+    match action {
+      'e' -> player.eat();
+      'r' -> player.rest();
+    }
+  }
+}
+
+#[entry]
+public fn start() -> Unit {
+    print("Game Starting!");
+    var player: Player = new (100, 100, 50, 0); // hp, hunger, energy, score
+    t1: Thread = threads.spawn("Status Process"); // create another thread called "Status Process"
+    t1.assignProcess(deteriorate(@player, @t1)); // assign a function for the thread to run
+    t1.begin(); // start the thread
+    process(@player);
+    die(@player);
+}
