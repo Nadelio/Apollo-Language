@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "Apollo_Language"
+name = "apollo"
 version = "0.1.0"

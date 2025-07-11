@@ -24,10 +24,24 @@ fn main() {
     // if `--version`, then print the version number
 
     // if no flags are found, then print the help message
+    if args.len() < 2 {
+        println!("{}Usage: apollo [options]\nType 'apollo --help' for more information.{}", MSG, RESET);
+        std::process::exit(0);
+    }
 
+    let file = args.iter().position(|x| x == "-f" || x == "--file");
+    let dir = args.iter().position(|x| x == "--dir");
 
-    let file: Option<String> = args.iter().find(|&x| x == "-f" || x == "--file").map(|x| x.clone());
-    let dir: Option<String> = args.iter().find(|&x| x == "--dir").map(|x| x.clone());
+    let help_flag = args.contains(&"-h".to_string()) || args.contains(&"--help".to_string());
+    let version_flag = args.contains(&"--version".to_string());
+    if help_flag {
+        println!("{}Usage: apollo [options]\nOptions:\n  -f, --file <file>    Specify a file to compile\n  --dir <directory>    Specify a directory to compile\n  -d, --debug          Enable debug mode\n  -v, --verbose        Enable verbose mode\n  -q, --quiet          Disable all output except for errors\n  -o, --output <dir>   Specify the output directory (default: ./out)\n  -l, --lib <libs>     Specify libraries to pull and compile\n  -h, --help           Show this help message\n  --version            Show version number\nVersions are in the format <major>.<minor>.<patch>-<Alpha/Beta/Release>\n{}", MSG, RESET);
+        std::process::exit(0);
+    }
+    if version_flag {
+        println!("{}Apollo Compiler Version: {}{}{}", MSG, INFO, VERSION, RESET);
+        std::process::exit(0);
+    }
 
     if file.is_some() && dir.is_some() {
         eprintln!("{}Error: {}Cannot specify both -f/--file and --dir flags.{}", ERR, MSG, RESET);
@@ -64,16 +78,6 @@ fn main() {
         }
     }).unwrap_or_else(|| "./out/".to_string());
     // -l and --lib flags would be processed similarly, but for now we will skip them
-    let help_flag = args.contains(&"-h".to_string()) || args.contains(&"--help".to_string());
-    let version_flag = args.contains(&"--version".to_string());
-    if help_flag {
-        println!("{}Usage: apollo [options]\nOptions:\n  -f, --file <file>    Specify a file to compile\n  --dir <directory>    Specify a directory to compile\n  -d, --debug          Enable debug mode\n  -v, --verbose        Enable verbose mode\n  -q, --quiet          Disable all output except for errors\n  -o, --output <dir>   Specify the output directory (default: ./out)\n  -l, --lib <libs>     Specify libraries to pull and compile\n  -h, --help           Show this help message\n  --version            Show version number\nVersions are in the format <major>.<minor>.<patch>-<Alpha/Beta/Release>\n{}", MSG, RESET);
-        std::process::exit(0);
-    }
-    if version_flag {
-        println!("Apollo Compiler Version: {}", VERSION);
-        std::process::exit(0);
-    }
 
     // iterate through every file and send them to a compile task (thread pool, max 5 threads/tasks)
     // lexer -> parser -> compiler
@@ -85,12 +89,12 @@ fn main() {
     else if debug { mode = 1; }
 
     if dir.is_some() {
-        let dir = dir.unwrap();
-        println!("{}Compiling directory: {}{}{}", DEBUG, INFO, dir, RESET);
+        let dir = args[dir.unwrap() + 1].clone();
+        if mode > 0 { println!("{}Compiling directory: {}{}{}", DEBUG, INFO, dir, RESET); }
         // Here you would implement the logic to read files from the directory and compile them
     } else if file.is_some() {
-        let file = file.unwrap();
-        println!("{}Compiling file: {}{}{}", DEBUG, INFO, file, RESET);
+        let file = args[file.unwrap() + 1].clone(); // filepath
+        if mode > 0 { println!("{}Compiling file: {}{}{}", DEBUG, INFO, file, RESET); }
         
         let result = Lexer::new(file, mode).begin();
         match result {
