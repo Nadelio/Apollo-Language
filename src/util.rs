@@ -32,7 +32,7 @@ impl ApolloError {
 
 #[inline(always)]
 pub fn print_debug(message: &str, info: &str) {
-    println!("{}{}{}{}{}", DEBUG, message, INFO, info, RESET);
+    println!("{DEBUG}{}{INFO}{}{RESET}", message, info);
 }
 
 pub const ERR: &str = "\u{1b}[31m";
