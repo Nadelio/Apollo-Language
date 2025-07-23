@@ -1,5 +1,6 @@
 pub mod lexer;
 pub mod util;
+pub mod tui;
 
 use lexer::Lexer;
 use util::{ ERR, SUCCESS, INFO, MSG, DEBUG, RESET };

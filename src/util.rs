@@ -30,9 +30,19 @@ impl ApolloError {
     }
 }
 
+#[inline(always)]
+pub fn print_debug(message: &str, info: &str) {
+    println!("{}{}{}{}{}", DEBUG, message, INFO, info, RESET);
+}
+
 pub const ERR: &str = "\u{1b}[31m";
 pub const SUCCESS: &str = "\u{1b}[32m";
 pub const INFO: &str = "\u{1b}[33m";
 pub const DEBUG: &str = "\u{1b}[35m";
 pub const MSG: &str = "\u{1b}[36m";
 pub const RESET: &str = "\u{1b}[0m";
+
+pub const UP: &str = "\u{1b}[1A";
+pub const DOWN: &str = "\u{1b}[1B";
+pub const LEFT: &str = "\u{1b}[1D";
+pub const RIGHT: &str = "\u{1b}[1C";
