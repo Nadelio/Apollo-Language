@@ -111,15 +111,15 @@ impl Lexer {
 
     pub fn next_token(&mut self) -> LexerToken {
         if self.mode > 1 { print_debug("Generating next token...", ""); }
-        // Here you would implement the logic to generate the next token based on the current character
-        // For simplicity, let's assume we just return a dummy token
+
+        //TODO: return a dummy token for now
         let token = LexerToken {
             token_type: "IDENTIFIER".to_string(),
             value: self.current_char.unwrap_or(' ').to_string(),
-            line: 1, // Placeholder for line number
-            column: self.position + 1, // Placeholder for column number
+            line: self.current_line, // Placeholder for line number
+            column: self.current_column, // Placeholder for column number
         };
-        if self.mode > 1 { print_debug("Generated token: ", &token.value); }
+        if self.mode > 1 { print_debug("Generated token: ", &token.to_string()); }
         return token;
     }
 }
