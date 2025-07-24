@@ -1,4 +1,4 @@
-use crate::util::{UP, DOWN, LEFT, RIGHT};
+use crate::util::{UP, DOWN, LEFT, RIGHT, TOP, BOTTOM, CLEAR};
 
 const TOTAL: f32 = 100.0;
 
@@ -35,7 +35,7 @@ impl LoadingBar {
             width: 50,
             height: 1,
             bar_char: '█',
-            empty_char: '█',
+            empty_char: '▒',
             container_char: '|',
             container_left: '[',
             container_right: ']',
@@ -44,8 +44,8 @@ impl LoadingBar {
             empty_color: "\u{1b}[37m",
         };
         // Assuming `top` and `bottom` are format strings like "{}"
-        l.show(); // Assuming you have a `show` method for LoadingBar
-        print!("{}", UP);
+        // l.show(); // Assuming you have a `show` method for LoadingBar
+        print!("{}", TOP);
         l
     }
 
@@ -91,5 +91,6 @@ impl LoadingBar {
                 reset = "\u{1b}[0m"
             );
         }
+        std::thread::sleep(std::time::Duration::from_millis(5));
     }
 }

@@ -102,7 +102,10 @@ impl Lexer {
             if self.mode > 1 { print_debug("Token generated: ", &tok.to_string()); }
             tokens.push(tok);
             self.read_char();
-            self.loading_bar.lerp(((self.position as f32 / self.content.len() as f32) * 100.0).round() as i32, false);
+            if self.mode == 0 {
+                self.loading_bar.lerp(((self.position as f32 / self.content.len() as f32) * 100.0)
+                                                .round() as i32, false);
+            }
         }
 
         print!("{}", DOWN);

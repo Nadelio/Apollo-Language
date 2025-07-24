@@ -3,7 +3,7 @@ pub mod util;
 pub mod tui;
 
 use lexer::Lexer;
-use util::{ ERR, SUCCESS, INFO, MSG, DEBUG, RESET };
+use util::{ ERR, SUCCESS, INFO, MSG, DEBUG, RESET, CLEAR };
 
 const VERSION: &str = "0.0.0-A";
 
@@ -88,6 +88,8 @@ fn main() {
     if quiet { mode = 0; }
     else if verbose { mode = 2; }
     else if debug { mode = 1; }
+
+    print!("{CLEAR}");
 
     if dir.is_some() {
         let dir = args[dir.unwrap() + 1].clone();

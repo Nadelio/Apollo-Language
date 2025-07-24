@@ -46,3 +46,6 @@ pub const UP: &str = "\u{1b}[1A";
 pub const DOWN: &str = "\u{1b}[1B";
 pub const LEFT: &str = "\u{1b}[1D";
 pub const RIGHT: &str = "\u{1b}[1C";
+pub const TOP: &str = "\u{1b}[H"; // Move cursor to the top of the terminal
+pub const BOTTOM: &str = "\u{1b}[999B"; // Move cursor to the bottom of the terminal
+pub const CLEAR: &str = "\u{1b}[2J"; // Clear the terminal screen
