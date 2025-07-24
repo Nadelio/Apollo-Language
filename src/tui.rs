@@ -43,8 +43,6 @@ impl LoadingBar {
             container_color: "\u{1b}[33m",
             empty_color: "\u{1b}[37m",
         };
-        // Assuming `top` and `bottom` are format strings like "{}"
-        // l.show(); // Assuming you have a `show` method for LoadingBar
         print!("{}", TOP);
         l
     }
