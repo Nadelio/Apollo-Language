@@ -208,7 +208,7 @@ impl Lexer {
         }
     }
 
-    fn parse_identifier(&mut self) -> LexerToken {
+    fn parse_identifier(&mut self) -> LexerToken { // there is a weird issue with this, "panic" keyword gets cut off, need to do some testing
         if self.mode > 1 { print_debug("Parsing identifier...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();
