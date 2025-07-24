@@ -153,20 +153,15 @@ impl Lexer {
                 return self.next_token(); // Continue to the next token
             },
             _ => {
-                if self.mode > 0 { print_debug("Found unknown character, skipping...", ""); }
-                self.read_char(); // Skip unknown character
+                if self.mode > 1 { print_debug("Found unknown character: ", &self.current_char.unwrap_or(' ').to_string()); }
+                return LexerToken {
+                    token_type: "ERROR".to_string(),
+                    value: self.current_char.unwrap_or(' ').to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                }; // Return error token for unknown characters
             }
-        }        
-
-        //TODO: return a dummy token for now
-        let token = LexerToken {
-            token_type: "IDENTIFIER".to_string(),
-            value: self.current_char.unwrap_or(' ').to_string(),
-            line: self.current_line, // Placeholder for line number
-            column: self.current_column, // Placeholder for column number
-        };
-        if self.mode > 1 { print_debug("Generated token: ", &token.to_string()); }
-        return token;
+        }
     }
 
     fn backtrack(&mut self) {
