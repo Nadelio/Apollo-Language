@@ -90,7 +90,7 @@ fn main() {
     }
 
     if logging {
-        // create file "debug.log" in the output directory
+        // create file "logs/debug.log" in the output directory
         let log_file_path = format!("{output_dir}/logs/debug.log");
         let mut log_file = std::fs::File::create(log_file_path).expect("Failed to create log file");
         let log_content = format!("Apollo Compiler Version: {}\n", VERSION);
@@ -122,6 +122,8 @@ fn main() {
         match result {
             Ok(_tokens) => {
                 if mode > 0 { println!("{}Lexing completed successfully.{}", SUCCESS, RESET); }
+                //TODO: if logging flag, write tokens to logs/lexer_tokens.log file
+                //TODO: if logging flag, write parser_tree to logs/parser_tree.log file
             },
             Err(e) => {
                 e.print();
