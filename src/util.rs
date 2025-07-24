@@ -1,3 +1,5 @@
+use std::io::Write;
+
 pub struct ApolloError {
     message: String,
     index: Option<usize>,
@@ -31,8 +33,17 @@ impl ApolloError {
 }
 
 #[inline(always)]
-pub fn print_debug(message: &str, info: &str) {
+pub fn print_debug(message: &str, info: &str, log: bool, output_dir: &str) {
     println!("{DEBUG}{message}{INFO}{info}{RESET}");
+    if log {
+        let log_file_path = format!("{output_dir}/logs/debug.log");
+        let mut log_file = std::fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(log_file_path)
+            .expect("Failed to open log file");
+        writeln!(log_file, "{message}{info}").expect("{ERROR}Failed to write to log file{RESET}");
+    }
 }
 
 pub const ERR: &str = "\u{1b}[31m";

@@ -10,7 +10,7 @@ const VERSION: &str = "0.0.0-A";
 fn main() {
     // take in cmdline args
     let args: Vec<String> = std::env::args().map(|x| x.to_lowercase()).collect();
-
+    let unstanitized_args: Vec<String> = std::env::args().map(|x| x).collect();
     // if `-f` or `--file`, then specify the file to compile, fail if both `-f` and `--dir` flags are not found
     // if `--dir`, then specify the directory to compile, fail if `-f` flag is also found`
 
@@ -43,6 +43,8 @@ fn main() {
         println!("{}Apollo Compiler Version: {}{}{}", MSG, INFO, VERSION, RESET);
         std::process::exit(0);
     }
+    
+    let logging = args.contains(&"--log".to_string());
 
     if file.is_some() && dir.is_some() {
         eprintln!("{}Error: {}Cannot specify both -f/--file and --dir flags.{}", ERR, MSG, RESET);
@@ -69,7 +71,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    let _output_dir = args.iter().find(|&x| x == "-o" || x == "--output").and_then(|x| {
+    let output_dir = args.iter().find(|&x| x == "-o" || x == "--output").and_then(|x| {
         let index = args.iter().position(|y| y == x)?;
         if index + 1 < args.len() {
             Some(args[index + 1].clone())
@@ -78,6 +80,23 @@ fn main() {
             std::process::exit(1);
         }
     }).unwrap_or_else(|| "./out/".to_string());
+
+    // create output folder if it doesn't exist
+    if !output_dir.is_empty() {
+        if let Err(e) = std::fs::create_dir_all(&output_dir) {
+            eprintln!("{}Error: {}Failed to create output directory: {}. {}", ERR, MSG, output_dir, e);
+            std::process::exit(1);
+        }
+    }
+
+    if logging {
+        // create file "debug.log" in the output directory
+        let log_file_path = format!("{output_dir}/logs/debug.log");
+        let mut log_file = std::fs::File::create(log_file_path).expect("Failed to create log file");
+        let log_content = format!("Apollo Compiler Version: {}\n", VERSION);
+        std::io::Write::write_all(&mut log_file, log_content.as_bytes()).expect("Failed to write to log file");
+    }
+
     // -l and --lib flags would be processed similarly, but for now we will skip them
 
     // iterate through every file and send them to a compile task (thread pool, max 5 threads/tasks)
@@ -96,10 +115,10 @@ fn main() {
         if mode > 0 { println!("{}Compiling directory: {}{}{}", DEBUG, INFO, dir, RESET); }
         // Here you would implement the logic to read files from the directory and compile them
     } else if file.is_some() {
-        let file = args[file.unwrap() + 1].clone(); // filepath
+        let file = unstanitized_args[file.unwrap() + 1].clone(); // filepath
         if mode > 0 { println!("{}Compiling file: {}{}{}", DEBUG, INFO, file, RESET); }
         
-        let result = Lexer::new(file, mode).begin();
+        let result = Lexer::new(file, mode, logging, output_dir).begin();
         match result {
             Ok(_tokens) => {
                 if mode > 0 { println!("{}Lexing completed successfully.{}", SUCCESS, RESET); }

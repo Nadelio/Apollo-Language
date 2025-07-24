@@ -93,5 +93,6 @@ impl LoadingBar {
             );
         }
         print!("{DOWN}");
+        //std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }

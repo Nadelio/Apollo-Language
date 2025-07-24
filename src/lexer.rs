@@ -26,6 +26,8 @@ impl Display for LexerToken {
 pub struct Lexer {
     filepath: String,
     mode: u8, // 0: quiet, 1: debug, 2: verbose
+    logging: bool, // Whether to log debug messages
+    output_dir: String, // Directory for output files and logs
     loading_bar: LoadingBar, // Loading bar for visual feedback
 
     //TODO: Additional fields for lexer state here
@@ -39,7 +41,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn new(filepath: String, mode: u8) -> Self {
+    pub fn new(filepath: String, mode: u8, logging: bool, output_dir: String) -> Self {
         let content = std::fs::read_to_string(&filepath)
             .map_err(|_e| ApolloError::new(format!("Failed to read file: {}", filepath), Some(0), None, None));
         let content = match content {
@@ -52,6 +54,8 @@ impl Lexer {
         let mut l = Lexer {
             filepath,
             mode,
+            logging,
+            output_dir,
             loading_bar: LoadingBar::new(),
             content,
             position: 0,
@@ -66,11 +70,11 @@ impl Lexer {
 
     fn read_char(&mut self) {
         if self.read_position >= self.content.len() {
-            if self.mode > 0 { print_debug("Reached end of file: ", &self.filepath); }
+            if self.mode > 0 { print_debug("Reached end of file: ", &self.filepath, self.logging, &self.output_dir); }
             self.current_char = None; // End of file
         } else {
             self.current_char = Some(self.content.chars().nth(self.read_position).unwrap());
-            if self.mode > 1 { print_debug("Reading char: ", &self.current_char.unwrap().to_string()); }
+            if self.mode > 1 { print_debug("Reading char: ", &self.current_char.unwrap().to_string(), self.logging, &self.output_dir); }
         }
 
         self.position = self.read_position;
@@ -82,24 +86,24 @@ impl Lexer {
             self.current_column = 0; // Reset column number
         }
 
-        if self.mode > 1 { print_debug("Current position: ", &self.position.to_string()); }
+        if self.mode > 1 { print_debug("Current position: ", &self.position.to_string(), self.logging, &self.output_dir); }
     }
 
     fn peek_char(&self) -> Option<char> {
         if self.read_position >= self.content.len() {
             None // No more characters to read
         } else {
-            if self.mode > 1 { print_debug("Peeking char: ", &self.content.chars().nth(self.read_position).unwrap().to_string()); }
+            if self.mode > 1 { print_debug("Peeking char: ", &self.content.chars().nth(self.read_position).unwrap().to_string(), self.logging, &self.output_dir); }
             Some(self.content.chars().nth(self.read_position).unwrap())
         }
     }
 
     pub fn begin(&mut self) -> Result<Vec<LexerToken>, ApolloError> {
-        if self.mode > 0 { print_debug("Lexing file: ", &self.filepath); } // debug msg
+        if self.mode > 0 { print_debug("Lexing file: ", &self.filepath, self.logging, &self.output_dir); } // debug msg
         let mut tokens: Vec<LexerToken> = Vec::new();
         while self.current_char.is_some() {
             let tok = self.next_token();
-            if self.mode > 1 { print_debug("Token generated: ", &tok.to_string()); }
+            if self.mode > 1 { print_debug("Token generated: ", &tok.to_string(), self.logging, &self.output_dir); }
             tokens.push(tok);
             self.read_char();
             if self.mode == 0 {
@@ -111,10 +115,10 @@ impl Lexer {
     }
 
     pub fn next_token(&mut self) -> LexerToken {
-        if self.mode > 1 { print_debug("Generating next token...", ""); }
+        if self.mode > 1 { print_debug("Generating next token...", "", self.logging, &self.output_dir); }
 
         if self.current_char.is_none() {
-            if self.mode > 0 { print_debug("No more characters to read.", ""); }
+            if self.mode > 0 { print_debug("No more characters to read.", "", self.logging, &self.output_dir); }
             return LexerToken {
                 token_type: "EOF".to_string(),
                 value: "".to_string(),
@@ -125,19 +129,19 @@ impl Lexer {
 
         match self.current_char.unwrap() {
             '0'..='9' => {
-                if self.mode > 1 { print_debug("Found digit, parsing integer...", ""); }
+                if self.mode > 1 { print_debug("Found digit, parsing integer...", "", self.logging, &self.output_dir); }
                 return self.parse_integer();
             },
             'a'..='z' | 'A'..='Z' | '_' => {
-                if self.mode > 1 { print_debug("Found identifier character, parsing identifier...", ""); }
+                if self.mode > 1 { print_debug("Found identifier character, parsing identifier...", "", self.logging, &self.output_dir); }
                 return self.parse_identifier();
             },
             '"' => {
-                if self.mode > 1 { print_debug("Found string delimiter, parsing string...", ""); }
+                if self.mode > 1 { print_debug("Found string delimiter, parsing string...", "", self.logging, &self.output_dir); }
                 return self.parse_string();
             },
             '+' | '-' | '*' | '/' | '=' | '<' | '>' => {
-                if self.mode > 1 { print_debug("Found operator, returning as token...", ""); }
+                if self.mode > 1 { print_debug("Found operator, returning as token...", "", self.logging, &self.output_dir); }
                 let token = LexerToken {
                     token_type: self.current_char.unwrap().to_string(),
                     value: self.current_char.unwrap().to_string(),
@@ -148,12 +152,12 @@ impl Lexer {
                 return token;
             },
             '\n' => {
-                if self.mode > 1 { print_debug("Found newline, skipping...", ""); }
+                if self.mode > 1 { print_debug("Found newline, skipping...", "", self.logging, &self.output_dir); }
                 self.read_char(); // Skip newline
                 return self.next_token(); // Continue to the next token
             },
             _ => {
-                if self.mode > 1 { print_debug("Found unknown character: ", &self.current_char.unwrap_or(' ').to_string()); }
+                if self.mode > 1 { print_debug("Found unknown character: ", &self.current_char.unwrap_or(' ').to_string(), self.logging, &self.output_dir); }
                 return LexerToken {
                     token_type: "ERROR".to_string(),
                     value: self.current_char.unwrap_or(' ').to_string(),
@@ -165,7 +169,7 @@ impl Lexer {
     }
 
     fn backtrack(&mut self) {
-        if self.mode > 1 { print_debug("Backtracking...", ""); }
+        if self.mode > 1 { print_debug("Backtracking...", "", self.logging, &self.output_dir); }
         if self.position <= 0 {
             self.current_char = None;
         } else {
@@ -182,7 +186,7 @@ impl Lexer {
     }
 
     fn parse_integer(&mut self) -> LexerToken {
-        if self.mode > 1 { print_debug("Parsing number...", ""); }
+        if self.mode > 1 { print_debug("Parsing number...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();
 
@@ -195,7 +199,7 @@ impl Lexer {
             }
         }
 
-        if self.mode > 1 { print_debug("Parsed integer: ", &value); }
+        if self.mode > 1 { print_debug("Parsed integer: ", &value, self.logging, &self.output_dir); }
         LexerToken {
             token_type: "INT".to_string(),
             value,
@@ -205,7 +209,7 @@ impl Lexer {
     }
 
     fn parse_identifier(&mut self) -> LexerToken {
-        if self.mode > 1 { print_debug("Parsing identifier...", ""); }
+        if self.mode > 1 { print_debug("Parsing identifier...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();
 
@@ -218,7 +222,7 @@ impl Lexer {
             }
         }
 
-        if self.mode > 1 { print_debug("Parsed identifier: ", &value); }
+        if self.mode > 1 { print_debug("Parsed identifier: ", &value, self.logging, &self.output_dir); }
         LexerToken {
             token_type: "IDENT".to_string(),
             value,
@@ -228,7 +232,7 @@ impl Lexer {
     }
 
     fn parse_string(&mut self) -> LexerToken {
-        if self.mode > 1 { print_debug("Parsing string...", ""); }
+        if self.mode > 1 { print_debug("Parsing string...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();
         self.read_char(); // Skip the opening quote
@@ -243,7 +247,7 @@ impl Lexer {
             }
         }
 
-        if self.mode > 1 { print_debug("Parsed string: ", &value); }
+        if self.mode > 1 { print_debug("Parsed string: ", &value, self.logging, &self.output_dir); }
         LexerToken {
             token_type: "STR".to_string(),
             value,
