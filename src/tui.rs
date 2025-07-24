@@ -4,7 +4,7 @@ const TOTAL: f32 = 100.0;
 
 pub struct LoadingBar {
     /// Current value for the loading bar
-    current: f32,
+    _current: f32,
     /// Width of the loading bar
     pub width: usize,
     /// Height of the loading bar
@@ -31,7 +31,7 @@ impl LoadingBar {
     /// default settings for the loading bar
     pub fn new() -> Self {
         let l = LoadingBar {
-            current: 0.0,
+            _current: 0.0,
             width: 50,
             height: 1,
             bar_char: '█',
@@ -62,7 +62,7 @@ impl LoadingBar {
 
     /// Render the loading bar to the console
     pub fn lerp(&mut self, percent: i32, unique_sides: bool) {
-        let loading_length = ((percent as f32 / 100.0) * self.width as f32).round() as usize;
+        let loading_length = (((percent as f32 / TOTAL) * self.width as f32).round() as usize).clamp(0, self.width);
         let loading = self.bar_char.to_string().repeat(loading_length);
         let padding = self.empty_char.to_string().repeat(self.width - loading_length);
 

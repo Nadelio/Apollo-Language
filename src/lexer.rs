@@ -1,5 +1,4 @@
 use std::fmt::Display;
-use std::thread::current;
 
 use crate::util;
 use crate::tui;
@@ -42,7 +41,7 @@ pub struct Lexer {
 impl Lexer {
     pub fn new(filepath: String, mode: u8) -> Self {
         let content = std::fs::read_to_string(&filepath)
-            .map_err(|e| ApolloError::new(format!("Failed to read file: {}", filepath), Some(0), None, None));
+            .map_err(|_e| ApolloError::new(format!("Failed to read file: {}", filepath), Some(0), None, None));
         let content = match content {
             Ok(c) => c,
             Err(e) => {
