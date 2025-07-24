@@ -107,8 +107,6 @@ impl Lexer {
                                                 .round() as i32, false);
             }
         }
-
-        print!("{}", DOWN);
         return Result::Ok(tokens); 
     }
 

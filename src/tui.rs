@@ -66,6 +66,7 @@ impl LoadingBar {
         let loading = self.bar_char.to_string().repeat(loading_length);
         let padding = self.empty_char.to_string().repeat(self.width - loading_length);
 
+        print!("{TOP}");
         // Example loading graphic: [█████     ]
         if unique_sides {
             print!(
@@ -91,6 +92,6 @@ impl LoadingBar {
                 reset = "\u{1b}[0m"
             );
         }
-        std::thread::sleep(std::time::Duration::from_millis(5));
+        print!("{DOWN}");
     }
 }
