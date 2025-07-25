@@ -138,28 +138,54 @@ impl Lexer {
             },
             '"' => {
                 if self.mode > 1 { print_debug("Found string delimiter, parsing string...", "", self.logging, &self.output_dir); }
-                return self.parse_string();
+                return self.parse_string(); // need to handle escape characters in strings
             },
-            '+' | '-' | '*' | '/' | '=' | '<' | '>' => {
-                if self.mode > 1 { print_debug("Found operator, returning as token...", "", self.logging, &self.output_dir); }
-                let token = LexerToken {
-                    token_type: self.current_char.unwrap().to_string(),
-                    value: self.current_char.unwrap().to_string(),
+            '\'' => {
+                if self.mode > 1 { print_debug("Found character delimiter, parsing character...", "", self.logging, &self.output_dir); }
+                // need to handle escape characters in characters, like '\uXXXXX'
+                return self.parse_character(); // This could be a separate method for character tokens
+            },
+            '<' | '>' => { return None; }, // handle <, <=, >, >=, etc.
+            '+' => { return None; }, // handle a++, a + b, a += b, etc.
+            '-' => { return None; }, // handle a--, a - b, -a, ->, a -= b, etc.
+            '=' => { return None; }, // handle a = b, ==, etc.
+            '/' => { return None; }, // handle //a, /* a */, a / b, a /= b, etc.
+            '*' => { return None; }, // handle a * b, a *= b, etc.
+            '!' => { return None; }, // handle !a, a != b, etc.
+            '^' => { return None; }, // handle a ^ b, a ^= b, etc.
+            '|' => { return None; }, // handle a | b, a |= b, a || b, lambda parameters (| a: u32 |), etc.
+            '&' => { return None; }, // handle a & b, a &= b, a && b, etc.
+            '@' => { return None; }, // handle pass by reference (@a)
+            '#' => { return None; }, // handle preprocessor directives like #[extern "..."], #[entry], etc.
+            '%' => { return None; }, // handle a % b, a %= b, etc.
+            ';' => { return None; }, // end statements
+            ',' => { return None; }, // used for separating items in lists, function arguments, etc.
+            ':' => { return None; }, // used for type declarataions (a: u32)
+            '.' => { return None; }, // used for method calls (a.b()), field access (a.b), etc.
+            '(' => { return None; }, // used for function calls (a()), grouping expressions ((a + b)), etc.
+            ')' => { return None; }, // used for closing function calls, grouping expressions, etc.
+            '{' => { return None; }, // used for starting blocks of code (if, for, while, etc.) and string interpolation "{a + b}"
+            '}' => { return None; }, // used for closing blocks of code and string interpolation
+            '[' => { return None; }, // used for starting arrays and indexing
+            ']' => { return None; }, // used for closing arrays and indexing
+            '\n' => {
+                if self.mode > 1 { print_debug("Found newline...", "", self.logging, &self.output_dir); }
+                return LexerToken {
+                    token_type: "NEWLINE".to_string(),
+                    value: "\n".to_string(),
                     line: self.current_line,
                     column: self.current_column,
                 };
-                self.read_char(); // Move to the next character
-                return token;
             },
-            '\n' => {
-                if self.mode > 1 { print_debug("Found newline, skipping...", "", self.logging, &self.output_dir); }
-                self.read_char(); // Skip newline
-                return self.next_token(); // Continue to the next token
+            ' ' | '\t' | '\r' => {
+                if self.mode > 1 { print_debug("Found whitespace, skipping...", "", self.logging, &self.output_dir); }
+                self.read_char(); // Skip whitespace character
+                return self.next_token(); // Continue to the next character
             },
             _ => {
                 if self.mode > 1 { print_debug("Found unknown character: ", &self.current_char.unwrap_or(' ').to_string(), self.logging, &self.output_dir); }
                 return LexerToken {
-                    token_type: "ERROR".to_string(),
+                    token_type: "UNKNOWN".to_string(),
                     value: self.current_char.unwrap_or(' ').to_string(),
                     line: self.current_line,
                     column: self.current_column,
@@ -231,7 +257,7 @@ impl Lexer {
         }
     }
 
-    fn parse_string(&mut self) -> LexerToken {
+    fn parse_string(&mut self) -> LexerToken { //TODO: need to update to be able to handle escape characters like \n, \t, \", and string interpolation
         if self.mode > 1 { print_debug("Parsing string...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();
@@ -253,6 +279,36 @@ impl Lexer {
             value,
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the string
+        }
+    }
+
+    fn parse_character(&mut self) -> LexerToken { //TODO: need to update to be able to handle escape characters like \n, \t, \', and unicode characters like \uXXXX
+        if self.mode > 1 { print_debug("Parsing character...", "", self.logging, &self.output_dir); }
+        let start_position = self.position;
+        let mut value = String::new();
+        self.read_char(); // Skip the opening quote
+
+        while let Some(c) = self.current_char {
+            if c == '\'' {
+                self.read_char(); // Skip the closing quote
+                break;
+            } else {
+                value.push(c);
+                self.read_char();
+            }
+        }
+
+        if value.len() != 1 {
+            eprintln!("{}Error: {}Invalid character literal: '{}'. Expected a single character.{}", ERR, MSG, value, RESET);
+            std::process::exit(1);
+        }
+
+        if self.mode > 1 { print_debug("Parsed character: ", &value, self.logging, &self.output_dir); }
+        LexerToken {
+            token_type: "CHAR".to_string(),
+            value,
+            line: self.current_line,
+            column: self.current_column - (self.position - start_position), // Adjust column based on the length of the character
         }
     }
 }
