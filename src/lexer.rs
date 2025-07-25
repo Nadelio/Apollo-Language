@@ -23,6 +23,17 @@ impl Display for LexerToken {
     }
 }
 
+impl Default for LexerToken {
+    fn default() -> Self {
+        LexerToken {
+            token_type: "ERROR".to_string(),
+            value: "".to_string(),
+            line: 0,
+            column: 0,
+        }
+    }
+}
+
 pub struct Lexer {
     filepath: String,
     mode: u8, // 0: quiet, 1: debug, 2: verbose
@@ -103,6 +114,7 @@ impl Lexer {
         let mut tokens: Vec<LexerToken> = Vec::new();
         while self.current_char.is_some() {
             let tok = self.next_token();
+            let tok = tok.unwrap_or_default();
             if self.mode > 1 { print_debug("Token generated: ", &tok.to_string(), self.logging, &self.output_dir); }
             tokens.push(tok);
             self.read_char();
@@ -114,17 +126,17 @@ impl Lexer {
         return Result::Ok(tokens); 
     }
 
-    pub fn next_token(&mut self) -> LexerToken {
+    pub fn next_token(&mut self) -> Option<LexerToken> {
         if self.mode > 1 { print_debug("Generating next token...", "", self.logging, &self.output_dir); }
 
         if self.current_char.is_none() {
             if self.mode > 0 { print_debug("No more characters to read.", "", self.logging, &self.output_dir); }
-            return LexerToken {
+            return Some(LexerToken {
                 token_type: "EOF".to_string(),
                 value: "".to_string(),
                 line: self.current_line,
                 column: self.current_column,
-            };
+            });
         }
 
         match self.current_char.unwrap() {
@@ -170,12 +182,12 @@ impl Lexer {
             ']' => { return None; }, // used for closing arrays and indexing
             '\n' => {
                 if self.mode > 1 { print_debug("Found newline...", "", self.logging, &self.output_dir); }
-                return LexerToken {
+                return Some(LexerToken {
                     token_type: "NEWLINE".to_string(),
                     value: "\n".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                };
+                });
             },
             ' ' | '\t' | '\r' => {
                 if self.mode > 1 { print_debug("Found whitespace, skipping...", "", self.logging, &self.output_dir); }
@@ -184,12 +196,12 @@ impl Lexer {
             },
             _ => {
                 if self.mode > 1 { print_debug("Found unknown character: ", &self.current_char.unwrap_or(' ').to_string(), self.logging, &self.output_dir); }
-                return LexerToken {
+                return Some(LexerToken {
                     token_type: "UNKNOWN".to_string(),
                     value: self.current_char.unwrap_or(' ').to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                }; // Return error token for unknown characters
+                }); // Return error token for unknown characters
             }
         }
     }
@@ -211,7 +223,7 @@ impl Lexer {
         }
     }
 
-    fn parse_integer(&mut self) -> LexerToken {
+    fn parse_integer(&mut self) -> Option<LexerToken> {
         if self.mode > 1 { print_debug("Parsing number...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();
@@ -226,15 +238,15 @@ impl Lexer {
         }
 
         if self.mode > 1 { print_debug("Parsed integer: ", &value, self.logging, &self.output_dir); }
-        LexerToken {
+        Some(LexerToken {
             token_type: "INT".to_string(),
             value,
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the number
-        }
+        })
     }
 
-    fn parse_identifier(&mut self) -> LexerToken { // there is a weird issue with this, "panic" keyword gets cut off, need to do some testing
+    fn parse_identifier(&mut self) -> Option<LexerToken> { // there is a weird issue with this, "panic" keyword gets cut off, need to do some testing
         if self.mode > 1 { print_debug("Parsing identifier...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();
@@ -249,15 +261,15 @@ impl Lexer {
         }
 
         if self.mode > 1 { print_debug("Parsed identifier: ", &value, self.logging, &self.output_dir); }
-        LexerToken {
+        Some(LexerToken {
             token_type: "IDENT".to_string(),
             value,
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the identifier
-        }
+        })
     }
 
-    fn parse_string(&mut self) -> LexerToken { //TODO: need to update to be able to handle escape characters like \n, \t, \", and string interpolation
+    fn parse_string(&mut self) -> Option<LexerToken> { //TODO: need to update to be able to handle escape characters like \n, \t, \", and string interpolation
         if self.mode > 1 { print_debug("Parsing string...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();
@@ -274,15 +286,15 @@ impl Lexer {
         }
 
         if self.mode > 1 { print_debug("Parsed string: ", &value, self.logging, &self.output_dir); }
-        LexerToken {
+        Some(LexerToken {
             token_type: "STR".to_string(),
             value,
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the string
-        }
+        })
     }
 
-    fn parse_character(&mut self) -> LexerToken { //TODO: need to update to be able to handle escape characters like \n, \t, \', and unicode characters like \uXXXX
+    fn parse_character(&mut self) -> Option<LexerToken> { //TODO: need to update to be able to handle escape characters like \n, \t, \', and unicode characters like \uXXXX
         if self.mode > 1 { print_debug("Parsing character...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();
@@ -304,11 +316,11 @@ impl Lexer {
         }
 
         if self.mode > 1 { print_debug("Parsed character: ", &value, self.logging, &self.output_dir); }
-        LexerToken {
+        Some(LexerToken {
             token_type: "CHAR".to_string(),
             value,
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the character
-        }
+        })
     }
 }
