@@ -26,7 +26,7 @@ fn main() {
 
     // if no flags are found, then print the help message
     if args.len() < 2 {
-        println!("{}Usage: apollo [options]\nType 'apollo --help' for more information.{}", MSG, RESET);
+        println!("{MSG}Usage: apollo [options]\nType 'apollo --help' for more information.{RESET}");
         std::process::exit(0);
     }
 
@@ -36,8 +36,8 @@ fn main() {
     let help_flag = args.contains(&"-h".to_string()) || args.contains(&"--help".to_string());
     let version_flag = args.contains(&"--version".to_string());
     if help_flag {
-        println!("{}Usage: apollo [options]\nOptions:\n  -f, --file <file>    Specify a file to compile\n  --dir <directory>    Specify a directory to compile\n  -d, --debug          Enable debug mode\n  -v, --verbose        Enable verbose mode\n  -q, --quiet          Disable all output except for errors\n  -o, --output <dir>   Specify the output directory (default: ./out)\n  -l, --lib <libs>     Specify libraries to pull and compile\n  -h, --help           Show this help message\n  --version            Show version number\nVersions are in the format <major>.<minor>.<patch>-<Alpha/Beta/Release>\n{}", MSG, RESET);
-        std::process::exit(0);
+        println!("{}Usage: apollo [options]\nOptions:\n  -f, --file <file>    Specify a file to compile\n  --dir <directory>    Specify a directory to compile\n  -d, --debug          Enable debug mode\n  -v, --verbose        Enable verbose mode\n  -q, --quiet          Disable all output except for errors\n  -o, --output <dir>   Specify the output directory (default: ./out)\n  -l, --lib <libs>     Specify libraries to pull and compile\n  -h, --help           Show this help message\n  --log                Enable logging, placed in <output dir>/logs/\n  --version            Show version number\nVersions are in the format <major>.<minor>.<patch>-<Alpha/Beta/Release>\n{}", MSG, RESET);
+        std::process::exit(0);  
     }
     if version_flag {
         println!("{}Apollo Compiler Version: {}{}{}", MSG, INFO, VERSION, RESET);
