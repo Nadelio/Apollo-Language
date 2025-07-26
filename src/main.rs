@@ -90,9 +90,18 @@ fn main() {
     }
 
     if logging {
+        // Ensure the logs directory exists before creating the log file
+        let logs_dir = format!("{output_dir}/logs");
+        if let Err(e) = std::fs::create_dir_all(&logs_dir) {
+            eprintln!("{}Error: {}Failed to create logs directory: {}. {}", ERR, MSG, logs_dir, e);
+            std::process::exit(1);
+        }
         // create file "logs/debug.log" in the output directory
-        let log_file_path = format!("{output_dir}/logs/debug.log");
-        let mut log_file = std::fs::File::create(log_file_path).expect("Failed to create log file");
+        let log_file_path = format!("{logs_dir}/debug.log");
+        let mut log_file = std::fs::File::create(&log_file_path).unwrap_or_else(|e| {
+            eprintln!("{}Error: {}Failed to create log file: {}. {}", ERR, MSG, log_file_path, e);
+            std::process::exit(1);
+        });
         let log_content = format!("Apollo Compiler Version: {}\n", VERSION);
         std::io::Write::write_all(&mut log_file, log_content.as_bytes()).expect("Failed to write to log file");
     }

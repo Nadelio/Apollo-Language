@@ -114,7 +114,14 @@ impl Lexer {
         let mut tokens: Vec<LexerToken> = Vec::new();
         while self.current_char.is_some() {
             let tok = self.next_token();
-            let tok = tok.unwrap_or_default();
+            let tok = tok.unwrap_or_else(|| {
+                LexerToken {
+                    token_type: "ERROR".to_string(),
+                    value: "".to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                }
+            });
             if self.mode > 1 { print_debug("Token generated: ", &tok.to_string(), self.logging, &self.output_dir); }
             tokens.push(tok);
             self.read_char();
@@ -184,7 +191,7 @@ impl Lexer {
                 if self.mode > 1 { print_debug("Found newline...", "", self.logging, &self.output_dir); }
                 return Some(LexerToken {
                     token_type: "NEWLINE".to_string(),
-                    value: "\n".to_string(),
+                    value: "\\n".to_string(),
                     line: self.current_line,
                     column: self.current_column,
                 });
