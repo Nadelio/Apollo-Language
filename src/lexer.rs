@@ -9,9 +9,55 @@ use util::{ UP, DOWN, LEFT, RIGHT };
 use tui::LoadingBar;
 use util::print_debug;
 
+pub enum TokenType {
+    NUMBER,
+    IDENTIFIER,
+    STRING,
+    CHARACTER,
+    SEMICOLON,
+    COLON,
+    COMMA,
+    DOT,
+    LEFTPAREN,
+    RIGHTPAREN,
+    LEFTBRACE,
+    RIGHTBRACE,
+    LEFTBRACKET,
+    RIGHTBRACKET,
+    NEWLINE,
+    UNKNOWN,
+    EOF,
+    ERROR,
+    // Add more token types as needed
+}
+
+impl Display for TokenType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TokenType::NUMBER => write!(f, "NUMBER"),
+            TokenType::IDENTIFIER => write!(f, "IDENTIFIER"),
+            TokenType::STRING => write!(f, "STRING"),
+            TokenType::CHARACTER => write!(f, "CHARACTER"),
+            TokenType::SEMICOLON => write!(f, "SEMI-COLON"),
+            TokenType::COLON => write!(f, "COLON"),
+            TokenType::COMMA => write!(f, "COMMA"),
+            TokenType::DOT => write!(f, "DOT"),
+            TokenType::LEFTPAREN => write!(f, "LEFT-PAREN"),
+            TokenType::RIGHTPAREN => write!(f, "RIGHT-PAREN"),
+            TokenType::LEFTBRACE => write!(f, "LEFT-BRACE"),
+            TokenType::RIGHTBRACE => write!(f, "RIGHT-BRACE"),
+            TokenType::LEFTBRACKET => write!(f, "LEFT-BRACKET"),
+            TokenType::RIGHTBRACKET => write!(f, "RIGHT-BRACKET"),
+            TokenType::NEWLINE => write!(f, "NEWLINE"),
+            TokenType::UNKNOWN => write!(f, "UNKNOWN"),
+            TokenType::EOF => write!(f, "EOF"),
+            TokenType::ERROR => write!(f, "ERROR"),
+        }
+    }
+}
 
 pub struct LexerToken {
-    pub token_type: String,
+    pub token_type: TokenType,
     pub value: String,
     pub line: usize,
     pub column: usize,
@@ -26,7 +72,7 @@ impl Display for LexerToken {
 impl Default for LexerToken {
     fn default() -> Self {
         LexerToken {
-            token_type: "ERROR".to_string(),
+            token_type: TokenType::ERROR,
             value: "".to_string(),
             line: 0,
             column: 0,
@@ -116,7 +162,7 @@ impl Lexer {
             let tok = self.next_token();
             let tok = tok.unwrap_or_else(|| {
                 LexerToken {
-                    token_type: "ERROR".to_string(),
+                    token_type: TokenType::ERROR,
                     value: "".to_string(),
                     line: self.current_line,
                     column: self.current_column,
@@ -139,7 +185,7 @@ impl Lexer {
         if self.current_char.is_none() {
             if self.mode > 0 { print_debug("No more characters to read.", "", self.logging, &self.output_dir); }
             return Some(LexerToken {
-                token_type: "EOF".to_string(),
+                token_type: TokenType::EOF,
                 value: "".to_string(),
                 line: self.current_line,
                 column: self.current_column,
@@ -147,9 +193,9 @@ impl Lexer {
         }
 
         match self.current_char.unwrap() {
-            '0'..='9' => {
-                if self.mode > 1 { print_debug("Found digit, parsing integer...", "", self.logging, &self.output_dir); }
-                return self.parse_integer();
+            '0'..='9' => { //TODO: handle hexadecimal, octal, binary, and float numbers -> 0x is hex, 0o is octal, 0b is binary, and float numbers can be handled with a decimal point and an f suffix
+                if self.mode > 1 { print_debug("Found digit, parsing number...", "", self.logging, &self.output_dir); }
+                return self.parse_number();
             },
             'a'..='z' | 'A'..='Z' | '_' => {
                 if self.mode > 1 { print_debug("Found identifier character, parsing identifier...", "", self.logging, &self.output_dir); }
@@ -164,7 +210,7 @@ impl Lexer {
                 // need to handle escape characters in characters, like '\uXXXXX'
                 return self.parse_character(); // This could be a separate method for character tokens
             },
-            '<' | '>' => { return None; }, // handle <, <=, >, >=, etc.
+            '<' | '>' => { return None; }, // handle <, <=, >, >=, >>, <<, >>=, <<= etc.
             '+' => { return None; }, // handle a++, a + b, a += b, etc.
             '-' => { return None; }, // handle a--, a - b, -a, ->, a -= b, etc.
             '=' => { return None; }, // handle a = b, ==, etc.
@@ -177,20 +223,82 @@ impl Lexer {
             '@' => { return None; }, // handle pass by reference (@a)
             '#' => { return None; }, // handle preprocessor directives like #[extern "..."], #[entry], etc.
             '%' => { return None; }, // handle a % b, a %= b, etc.
-            ';' => { return None; }, // end statements
-            ',' => { return None; }, // used for separating items in lists, function arguments, etc.
-            ':' => { return None; }, // used for type declarataions (a: u32)
-            '.' => { return None; }, // used for method calls (a.b()), field access (a.b), etc.
-            '(' => { return None; }, // used for function calls (a()), grouping expressions ((a + b)), etc.
-            ')' => { return None; }, // used for closing function calls, grouping expressions, etc.
-            '{' => { return None; }, // used for starting blocks of code (if, for, while, etc.) and string interpolation "{a + b}"
-            '}' => { return None; }, // used for closing blocks of code and string interpolation
-            '[' => { return None; }, // used for starting arrays and indexing
-            ']' => { return None; }, // used for closing arrays and indexing
+            '~' => { return None; }, // handle ~a
+            '?' => { return None; }, // idk what to use this for, but handle it anyways
+            ';' => { return Some(LexerToken {
+                    token_type: TokenType::SEMICOLON, 
+                    value: ";".to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                }); 
+            }, // end statements
+            ',' => { return Some(LexerToken {
+                    token_type: TokenType::COMMA, 
+                    value: ",".to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                });
+            }, // used for separating items in lists, function arguments, etc.
+            ':' => { return Some(LexerToken {
+                    token_type: TokenType::COLON, 
+                    value: ":".to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                });
+            }, // used for type declarataions (a: u32)
+            '.' => { return Some(LexerToken {
+                    token_type: TokenType::DOT, 
+                    value: ".".to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                });
+            }, // used for method calls (a.b()), field access (a.b), etc.
+            '(' => { return Some(LexerToken {
+                    token_type: TokenType::LEFTPAREN, 
+                    value: "(".to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                });
+            }, // used for function calls (a()), grouping expressions ((a + b)), etc.
+            ')' => { return Some(LexerToken {
+                    token_type: TokenType::RIGHTPAREN, 
+                    value: "(".to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                });
+            }, // used for closing function calls, grouping expressions, etc.
+            '{' => { return Some(LexerToken {
+                    token_type: TokenType::LEFTBRACE, 
+                    value: "{".to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                });
+            }, // used for starting blocks of code (if, for, while, etc.) and string interpolation "{a + b}"
+            '}' => { return Some(LexerToken {
+                    token_type: TokenType::RIGHTBRACE, 
+                    value: "}".to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                });
+            }, // used for closing blocks of code and string interpolation
+            '[' => { return Some(LexerToken {
+                    token_type: TokenType::LEFTBRACKET, 
+                    value: "[".to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                });
+            }, // used for starting arrays and indexing
+            ']' => { return Some(LexerToken {
+                    token_type: TokenType::RIGHTBRACKET, 
+                    value: "]".to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                });
+            }, // used for closing arrays and indexing
             '\n' => {
                 if self.mode > 1 { print_debug("Found newline...", "", self.logging, &self.output_dir); }
                 return Some(LexerToken {
-                    token_type: "NEWLINE".to_string(),
+                    token_type: TokenType::NEWLINE,
                     value: "\\n".to_string(),
                     line: self.current_line,
                     column: self.current_column,
@@ -204,7 +312,7 @@ impl Lexer {
             _ => {
                 if self.mode > 1 { print_debug("Found unknown character: ", &self.current_char.unwrap_or(' ').to_string(), self.logging, &self.output_dir); }
                 return Some(LexerToken {
-                    token_type: "UNKNOWN".to_string(),
+                    token_type: TokenType::UNKNOWN,
                     value: self.current_char.unwrap_or(' ').to_string(),
                     line: self.current_line,
                     column: self.current_column,
@@ -230,7 +338,7 @@ impl Lexer {
         }
     }
 
-    fn parse_integer(&mut self) -> Option<LexerToken> {
+    fn parse_number(&mut self) -> Option<LexerToken> {
         if self.mode > 1 { print_debug("Parsing number...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();
@@ -240,18 +348,21 @@ impl Lexer {
                 value.push(c);
                 self.read_char();
             } else {
+                self.backtrack();
                 break;
             }
         }
 
         if self.mode > 1 { print_debug("Parsed integer: ", &value, self.logging, &self.output_dir); }
-        Some(LexerToken {
-            token_type: "INT".to_string(),
+        Some(LexerToken { //TODO: Temporary, will need to handle different number types like float, hex, octal, etc.
+            token_type: TokenType::NUMBER,
             value,
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the number
         })
     }
+    
+    //TODO: parse_hexadecimal, parse_octal, parse_binary, parse_float
 
     fn parse_identifier(&mut self) -> Option<LexerToken> { // there is a weird issue with this, "panic" keyword gets cut off, need to do some testing
         if self.mode > 1 { print_debug("Parsing identifier...", "", self.logging, &self.output_dir); }
@@ -263,20 +374,21 @@ impl Lexer {
                 value.push(c);
                 self.read_char();
             } else {
+                self.backtrack();
                 break;
             }
         }
 
         if self.mode > 1 { print_debug("Parsed identifier: ", &value, self.logging, &self.output_dir); }
         Some(LexerToken {
-            token_type: "IDENT".to_string(),
+            token_type: TokenType::IDENTIFIER,
             value,
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the identifier
         })
     }
 
-    fn parse_string(&mut self) -> Option<LexerToken> { //TODO: need to update to be able to handle escape characters like \n, \t, \", and string interpolation
+    fn parse_string(&mut self) -> Option<LexerToken> { //TODO: need to update to be able to handle escape characters like \n, \t, \", \{, \}, \uXXXX, and string interpolation
         if self.mode > 1 { print_debug("Parsing string...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();
@@ -294,7 +406,7 @@ impl Lexer {
 
         if self.mode > 1 { print_debug("Parsed string: ", &value, self.logging, &self.output_dir); }
         Some(LexerToken {
-            token_type: "STR".to_string(),
+            token_type: TokenType::STRING,
             value,
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the string
@@ -318,13 +430,13 @@ impl Lexer {
         }
 
         if value.len() != 1 {
-            eprintln!("{}Error: {}Invalid character literal: '{}'. Expected a single character.{}", ERR, MSG, value, RESET);
+            eprintln!("{ERR}Error: {MSG}Invalid character literal: {INFO}'{}'{MSG}. Expected a single character.{ERR} Located @ Line: {INFO}{}{ERR}, Column: {INFO}{}{ERR}.{RESET}", value, self.current_line, self.current_column);
             std::process::exit(1);
         }
 
         if self.mode > 1 { print_debug("Parsed character: ", &value, self.logging, &self.output_dir); }
         Some(LexerToken {
-            token_type: "CHAR".to_string(),
+            token_type: TokenType::CHARACTER,
             value,
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the character
