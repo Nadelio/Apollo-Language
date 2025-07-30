@@ -14,6 +14,7 @@ pub enum TokenType {
     IDENTIFIER,
     STRING,
     CHARACTER,
+    AMPERSAND,
     SEMICOLON,
     COLON,
     COMMA,
@@ -38,6 +39,7 @@ impl Display for TokenType {
             TokenType::IDENTIFIER => write!(f, "IDENTIFIER"),
             TokenType::STRING => write!(f, "STRING"),
             TokenType::CHARACTER => write!(f, "CHARACTER"),
+            TokenType::AMPERSAND => write!(f, "AMPERSAND"),
             TokenType::SEMICOLON => write!(f, "SEMI-COLON"),
             TokenType::COLON => write!(f, "COLON"),
             TokenType::COMMA => write!(f, "COMMA"),
@@ -220,7 +222,13 @@ impl Lexer {
             '^' => { return None; }, // handle a ^ b, a ^= b, etc.
             '|' => { return None; }, // handle a | b, a |= b, a || b, lambda parameters (| a: u32 |), etc.
             '&' => { return None; }, // handle a & b, a &= b, a && b, etc.
-            '@' => { return None; }, // handle pass by reference (@a)
+            '@' => { return Some(LexerToken {
+                    token_type: TokenType::AMPERSAND, 
+                    value: "@".to_string(),
+                    line: self.current_line,
+                    column: self.current_column,
+                });
+            }, // handle pass by reference (@a)
             '#' => { return None; }, // handle preprocessor directives like #[extern "..."], #[entry], etc.
             '%' => { return None; }, // handle a % b, a %= b, etc.
             '~' => { return None; }, // handle ~a
