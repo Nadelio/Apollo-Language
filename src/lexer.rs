@@ -14,6 +14,14 @@ pub enum TokenType {
     IDENTIFIER,
     STRING,
     CHARACTER,
+    LESSEQL,
+    GREATEREQL,
+    LESS,
+    GREATER,
+    LEFTSHIFTASSIGN,
+    RIGHTSHIFTASSIGN,
+    LEFTSHIFT,
+    RIGHTSHIFT,
     AMPERSAND,
     SEMICOLON,
     COLON,
@@ -39,6 +47,14 @@ impl Display for TokenType {
             TokenType::IDENTIFIER => write!(f, "IDENTIFIER"),
             TokenType::STRING => write!(f, "STRING"),
             TokenType::CHARACTER => write!(f, "CHARACTER"),
+            TokenType::LESSEQL => write!(f, "LESS-EQUAL"),
+            TokenType::GREATEREQL => write!(f, "GREATER-EQUAL"),
+            TokenType::LESS => write!(f, "LESS"),
+            TokenType::GREATER => write!(f, "GREATER"),
+            TokenType::LEFTSHIFTASSIGN => write!(f, "LEFT-SHIFT-ASSIGN"),
+            TokenType::RIGHTSHIFTASSIGN => write!(f, "RIGHT-SHIFT-ASSIGN"),
+            TokenType::LEFTSHIFT => write!(f, "LEFT-SHIFT"),
+            TokenType::RIGHTSHIFT => write!(f, "RIGHT-SHIFT"),
             TokenType::AMPERSAND => write!(f, "AMPERSAND"),
             TokenType::SEMICOLON => write!(f, "SEMI-COLON"),
             TokenType::COLON => write!(f, "COLON"),
@@ -127,6 +143,10 @@ impl Lexer {
         l
     }
 
+    pub fn is_whitespace(c: char) -> bool {
+        c == ' ' || c == '\r' || c == '\t'
+    }
+
     fn read_char(&mut self) {
         if self.read_position >= self.content.len() {
             if self.mode > 0 { print_debug("Reached end of file: ", &self.filepath, self.logging, &self.output_dir); }
@@ -212,7 +232,111 @@ impl Lexer {
                 // need to handle escape characters in characters, like '\uXXXXX'
                 return self.parse_character(); // This could be a separate method for character tokens
             },
-            '<' | '>' => { return None; }, // handle <, <=, >, >=, >>, <<, >>=, <<= etc.
+            '<' | '>' => { // handle <, <=, >, >=, >>, <<, >>=, <<=
+                let c = self.current_char.unwrap();
+                let next_char = self.peek_char();
+                match next_char {
+                    Some('=') => { // <= or >=
+                        self.read_char(); // consume the '=' character
+                        if c == '<' {
+                            return Some(LexerToken {
+                                token_type: TokenType::LESSEQL,
+                                value: "<=".to_string(),
+                                line: self.current_line,
+                                column: self.current_column,
+                            });
+                        } else if c == '>' {
+                            return Some(LexerToken {
+                                token_type: TokenType::GREATEREQL,
+                                value: ">=".to_string(),
+                                line: self.current_line,
+                                column: self.current_column,
+                            });
+                        } else { return Some(LexerToken {
+                                token_type: TokenType::ERROR,
+                                value: format!("{c}{}", next_char.unwrap()).to_string(),
+                                line: self.current_line,
+                                column: self.current_column,
+                            }); 
+                        } // This should not happen, but handle it gracefully
+                    },
+                    Some('>') => { // >> or >>=
+                        self.read_char(); // consume the '>' character
+                        if c == '>' {
+                            if self.peek_char() == Some('=') {
+                                self.read_char(); // consume the '=' character
+                                return Some(LexerToken {
+                                    token_type: TokenType::RIGHTSHIFTASSIGN,
+                                    value: ">>=".to_string(),
+                                    line: self.current_line,
+                                    column: self.current_column,
+                                });
+                            }
+                            return Some(LexerToken {
+                                token_type: TokenType::RIGHTSHIFT,
+                                value: ">>".to_string(),
+                                line: self.current_line,
+                                column: self.current_column,
+                            });
+                        } else { return Some(LexerToken {
+                                token_type: TokenType::ERROR,
+                                value: format!("{c}{}", next_char.unwrap()).to_string(),
+                                line: self.current_line,
+                                column: self.current_column,
+                            });
+                        } // This should not happen, but handle it gracefully
+                    },
+                    Some('<') => { // << or <<=
+                        self.read_char(); // consume the '<' character
+                        if c == '<' {
+                            if self.peek_char() == Some('=') {
+                                self.read_char(); // consume the '=' character
+                                return Some(LexerToken {
+                                    token_type: TokenType::LEFTSHIFTASSIGN,
+                                    value: "<<=".to_string(),
+                                    line: self.current_line,
+                                    column: self.current_column,
+                                });
+                            }
+                            return Some(LexerToken {
+                                token_type: TokenType::LEFTSHIFT,
+                                value: "<<".to_string(),
+                                line: self.current_line,
+                                column: self.current_column,
+                            });
+                        } else { return Some(LexerToken {
+                                token_type: TokenType::ERROR,
+                                value: format!("{c}{}", next_char.unwrap()).to_string(),
+                                line: self.current_line,
+                                column: self.current_column,
+                            });
+                        } // This should not happen, but handle it gracefully
+                    },
+                    _  => { // < or >
+                        if c == '<' {
+                            return Some(LexerToken {
+                                token_type: TokenType::LESS,
+                                value: "<".to_string(),
+                                line: self.current_line,
+                                column: self.current_column,
+                            });
+                        } else if c == '>' {
+                            return Some(LexerToken {
+                                token_type: TokenType::GREATER,
+                                value: ">".to_string(),
+                                line: self.current_line,
+                                column: self.current_column,
+                            });
+                        } else { return Some(LexerToken {
+                                token_type: TokenType::ERROR,
+                                value: c.to_string(),
+                                line: self.current_line,
+                                column: self.current_column,
+                            });
+                        }
+                    }
+                }
+            }, // handle <, <=, >, >=, >>, <<, >>=, <<=
             '+' => { return None; }, // handle a++, a + b, a += b, etc.
             '-' => { return None; }, // handle a--, a - b, -a, ->, a -= b, etc.
             '=' => { return None; }, // handle a = b, ==, etc.

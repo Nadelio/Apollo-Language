@@ -8,9 +8,11 @@ class Player(health: u8, hunger: u8, energy: u8, score: u32) {
     var score: u32;
     
     unary operator --() -> Unit { // define custom decrement operator for Player class
-        self.health--;
-        self.hunger--;
-        self.energy--;
+        if(self.hunger <= 0) {
+            self.health = clamp(self.health--, 0, 100);
+        }
+        self.hunger = clamp(self.hunger--, 0, 100);
+        self.energy = clamp(self.energy--, 0, 50);
     }
 
     fn reset() -> Unit { self = new (100, 100, 50, 0); }
