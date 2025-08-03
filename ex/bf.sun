@@ -36,7 +36,7 @@ public fn bf() -> Unit {
             temp: char = readIn().slice()[0];
             mem[ptr] = temp as u8; // cast character to u8
         }
-        _ -> panic new InvalidInstruction(cmd as string, index); // error
+        _ -> panic InvalidInstruction(cmd as string, index); // error
       }
       index++;
     }

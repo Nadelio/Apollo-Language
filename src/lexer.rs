@@ -22,6 +22,17 @@ pub enum TokenType {
     RIGHTSHIFTASSIGN,
     LEFTSHIFT,
     RIGHTSHIFT,
+    INCREMENT,
+    ADDASSIGN,
+    PLUS,
+    DECREMENT,
+    SUBASSIGN,
+    MINUS,
+    RIGHTARROW,
+    EQL,
+    ASSIGN,
+    DIVASSIGN,
+    DIVIDE,
     AMPERSAND,
     SEMICOLON,
     COLON,
@@ -55,6 +66,17 @@ impl Display for TokenType {
             TokenType::RIGHTSHIFTASSIGN => write!(f, "RIGHT-SHIFT-ASSIGN"),
             TokenType::LEFTSHIFT => write!(f, "LEFT-SHIFT"),
             TokenType::RIGHTSHIFT => write!(f, "RIGHT-SHIFT"),
+            TokenType::INCREMENT => write!(f, "INCREMENT"),
+            TokenType::ADDASSIGN => write!(f, "ADD-ASSIGN"),
+            TokenType::PLUS => write!(f, "PLUS"),
+            TokenType::DECREMENT => write!(f, "DECREMENT"),
+            TokenType::SUBASSIGN => write!(f, "SUB-ASSIGN"),
+            TokenType::MINUS => write!(f, "MINUS"),
+            TokenType::RIGHTARROW => write!(f, "RIGHT-ARROW"),
+            TokenType::EQL => write!(f, "EQUALS"),
+            TokenType::ASSIGN => write!(f, "ASSIGN"),
+            TokenType::DIVASSIGN => write!(f, "DIVIDE-ASSIGN"),
+            TokenType::DIVIDE => write!(f, "DIVIDE"),
             TokenType::AMPERSAND => write!(f, "AMPERSAND"),
             TokenType::SEMICOLON => write!(f, "SEMI-COLON"),
             TokenType::COLON => write!(f, "COLON"),
@@ -230,14 +252,14 @@ impl Lexer {
             '\'' => {
                 if self.mode > 1 { print_debug("Found character delimiter, parsing character...", "", self.logging, &self.output_dir); }
                 // need to handle escape characters in characters, like '\uXXXXX'
-                return self.parse_character(); // This could be a separate method for character tokens
+                return self.parse_character();
             },
             '<' | '>' => { // handle <, <=, >, >=, >>, <<, >>=, <<=
                 let c = self.current_char.unwrap();
                 let next_char = self.peek_char();
                 match next_char {
                     Some('=') => { // <= or >=
-                        self.read_char(); // consume the '=' character
+                        self.read_char();
                         if c == '<' {
                             return Some(LexerToken {
                                 token_type: TokenType::LESSEQL,
@@ -258,13 +280,13 @@ impl Lexer {
                                 line: self.current_line,
                                 column: self.current_column,
                             }); 
-                        } // This should not happen, but handle it gracefully
+                        } // This should not happen
                     },
                     Some('>') => { // >> or >>=
-                        self.read_char(); // consume the '>' character
+                        self.read_char();
                         if c == '>' {
                             if self.peek_char() == Some('=') {
-                                self.read_char(); // consume the '=' character
+                                self.read_char();
                                 return Some(LexerToken {
                                     token_type: TokenType::RIGHTSHIFTASSIGN,
                                     value: ">>=".to_string(),
@@ -284,13 +306,13 @@ impl Lexer {
                                 line: self.current_line,
                                 column: self.current_column,
                             });
-                        } // This should not happen, but handle it gracefully
+                        } // This should not happen
                     },
                     Some('<') => { // << or <<=
-                        self.read_char(); // consume the '<' character
+                        self.read_char();
                         if c == '<' {
                             if self.peek_char() == Some('=') {
-                                self.read_char(); // consume the '=' character
+                                self.read_char();
                                 return Some(LexerToken {
                                     token_type: TokenType::LEFTSHIFTASSIGN,
                                     value: "<<=".to_string(),
@@ -310,7 +332,7 @@ impl Lexer {
                                 line: self.current_line,
                                 column: self.current_column,
                             });
-                        } // This should not happen, but handle it gracefully
+                        } // This should not happen
                     },
                     _  => { // < or >
                         if c == '<' {
@@ -337,10 +359,143 @@ impl Lexer {
                     }
                 }
             }, // handle <, <=, >, >=, >>, <<, >>=, <<=
-            '+' => { return None; }, // handle a++, a + b, a += b, etc.
-            '-' => { return None; }, // handle a--, a - b, -a, ->, a -= b, etc.
-            '=' => { return None; }, // handle a = b, ==, etc.
-            '/' => { return None; }, // handle //a, /* a */, a / b, a /= b, etc.
+            '+' => { // handle a++, a + b, a += b
+                let next_char = self.peek_char();
+                match next_char {
+                    Some('+') => { // ++
+                        self.read_char();
+                        return Some(LexerToken {
+                            token_type: TokenType::INCREMENT,
+                            value: "++".to_string(),
+                            line: self.current_line,
+                            column: self.current_column,
+                        });
+                    },
+                    Some('=') => { // +=
+                        self.read_char();
+                        return Some(LexerToken {
+                            token_type: TokenType::ADDASSIGN,
+                            value: "+=".to_string(),
+                            line: self.current_line,
+                            column: self.current_column,
+                        });
+                    },
+                    _ => { // +
+                        return Some(LexerToken {
+                            token_type: TokenType::PLUS,
+                            value: "+".to_string(),
+                            line: self.current_line,
+                            column: self.current_column,
+                        })
+                    }
+                }
+            }, // handle a++, a + b, a += b
+            '-' => { // handle a--, a - b, -a, ->, a -= b
+                let next_char = self.peek_char();
+                match next_char {
+                    Some('-') => { // -- 
+                        self.read_char();
+                        return Some(LexerToken {
+                            token_type: TokenType::DECREMENT,
+                            value: "--".to_string(),
+                            line: self.current_line,
+                            column: self.current_column,
+                        });
+                    },
+                    Some('>') => { // ->
+                        self.read_char();
+                        return Some(LexerToken {
+                            token_type: TokenType::RIGHTARROW,
+                            value: "->".to_string(),
+                            line: self.current_line,
+                            column: self.current_column,
+                        });
+                    },
+                    Some('=') => { // -=
+                        self.read_char();
+                        return Some(LexerToken {
+                            token_type: TokenType::SUBASSIGN,
+                            value: "-=".to_string(),
+                            line: self.current_line,
+                            column: self.current_column,
+                        });
+                    },
+                    _ => { // -
+                        return Some(LexerToken {
+                            token_type: TokenType::MINUS,
+                            value: "-".to_string(),
+                            line: self.current_line,
+                            column: self.current_column,
+                        });
+                    }
+                }
+            }, // handle a--, a - b, -a, ->, a -= b
+            '=' => { // handle a = b, ==
+                let next_char = self.peek_char();
+                match next_char {
+                    Some('=') => { // ==
+                        self.read_char();
+                        return Some(LexerToken {
+                            token_type: TokenType::EQL,
+                            value: "==".to_string(),
+                            line: self.current_line,
+                            column: self.current_column,
+                        });
+                    },
+                    _ => {
+                        return Some(LexerToken {
+                            token_type: TokenType::ASSIGN,
+                            value: "=".to_string(),
+                            line: self.current_line,
+                            column: self.current_column,
+                        });
+                    }
+                }
+            }, // handle a = b, ==
+            '/' => { // handle //a, /* a */, a / b, a /= b
+                let next_char = self.peek_char();
+                match next_char {
+                    Some('/') => { // //
+                        self.read_char();
+                        while let Some(c) = self.current_char {
+                            if c == '\n' {
+                                break;
+                            }
+                            self.read_char();
+                        }
+                        return None;
+                    },
+                    Some('*') => { // /* */
+                        self.read_char();
+                        while let Some(c) = self.current_char {
+                            if c == '*' && self.peek_char() == Some('/') {
+                                self.read_char();
+                                self.read_char();
+                                break;
+                            }
+                            self.read_char();
+                        }
+                        return None;
+                    },
+                    Some('=') => { // /=
+                        self.read_char();
+                        return Some(LexerToken {
+                            token_type: TokenType::DIVASSIGN,
+                            value: "/=".to_string(),
+                            line: self.current_line,
+                            column: self.current_column,
+                        });
+                    },
+                    _ => { // /
+                        return Some(LexerToken {
+                            token_type: TokenType::DIVIDE,
+                            value: "/".to_string(),
+                            line: self.current_line,
+                            column: self.current_column,
+                        });
+                    }
+                }
+            }, // handle //a, /* a */, a / b, a /= b
             '*' => { return None; }, // handle a * b, a *= b, etc.
             '!' => { return None; }, // handle !a, a != b, etc.
             '^' => { return None; }, // handle a ^ b, a ^= b, etc.
@@ -394,7 +549,7 @@ impl Lexer {
             }, // used for function calls (a()), grouping expressions ((a + b)), etc.
             ')' => { return Some(LexerToken {
                     token_type: TokenType::RIGHTPAREN, 
-                    value: "(".to_string(),
+                    value: ")".to_string(),
                     line: self.current_line,
                     column: self.current_column,
                 });
