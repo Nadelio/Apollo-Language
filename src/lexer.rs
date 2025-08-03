@@ -508,7 +508,7 @@ impl Lexer {
                     column: self.current_column,
                 });
             }, // handle pass by reference (@a)
-            '#' => { return None; }, // handle preprocessor directives like #[extern "..."], #[entry], etc.
+            '#' => { return None; }, // handle annotations like #[extern "..."], #[entry], etc.
             '%' => { return None; }, // handle a % b, a %= b, etc.
             '~' => { return None; }, // handle ~a
             '?' => { return None; }, // idk what to use this for, but handle it anyways
