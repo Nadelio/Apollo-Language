@@ -30,6 +30,7 @@ pub enum TokenType {
     MINUS,
     RIGHTARROW,
     EQL,
+    LAMBDA,
     ASSIGN,
     DIVASSIGN,
     DIVIDE,
@@ -74,6 +75,7 @@ impl Display for TokenType {
             TokenType::MINUS => write!(f, "MINUS"),
             TokenType::RIGHTARROW => write!(f, "RIGHT-ARROW"),
             TokenType::EQL => write!(f, "EQUALS"),
+            TokenType::LAMBDA => write!(f, "LAMBDA"),
             TokenType::ASSIGN => write!(f, "ASSIGN"),
             TokenType::DIVASSIGN => write!(f, "DIVIDE-ASSIGN"),
             TokenType::DIVIDE => write!(f, "DIVIDE"),
@@ -430,7 +432,7 @@ impl Lexer {
                     }
                 }
             }, // handle a--, a - b, -a, ->, a -= b
-            '=' => { // handle a = b, ==
+            '=' => { // handle a = b, ==, =>
                 let next_char = self.peek_char();
                 match next_char {
                     Some('=') => { // ==
@@ -442,6 +444,15 @@ impl Lexer {
                             column: self.current_column,
                         });
                     },
+                    Some('>') => { // =>
+                        self.read_char();
+                        return Some(LexerToken {
+                            token_type: TokenType::LAMBDA,
+                            value: "=>".to_string(),
+                            line: self.current_line,
+                            column: self.current_column
+                        });
+                    }
                     _ => {
                         return Some(LexerToken {
                             token_type: TokenType::ASSIGN,
@@ -451,7 +462,7 @@ impl Lexer {
                         });
                     }
                 }
-            }, // handle a = b, ==
+            }, // handle a = b, ==, =>
             '/' => { // handle //a, /* a */, a / b, a /= b
                 let next_char = self.peek_char();
                 match next_char {
@@ -463,7 +474,7 @@ impl Lexer {
                             }
                             self.read_char();
                         }
-                        return None;
+                        return None; //TODO: Change this to return a line comment token
                     },
                     Some('*') => { // /* */
                         self.read_char();
@@ -475,7 +486,7 @@ impl Lexer {
                             }
                             self.read_char();
                         }
-                        return None;
+                        return None; //TODO: Change this to return a block comment token
                     },
                     Some('=') => { // /=
                         self.read_char();

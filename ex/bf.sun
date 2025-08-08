@@ -23,7 +23,7 @@ public fn bf() -> Unit {
     // interpreter variables
     var mem: [u8; 256] = new; // create an array of u8's with length 256, automatically initialize it to 0 
     var ptr: u8 = 0;
-    var index: u8 = 0;
+    var index: u8 = 0; /* block comment */
 
     cmds.foreach { |const cmd: char| // foreach takes in a lambda that takes in an immutable character value, trailing lambda syntactic sugar
       match cmd { // pattern matching
