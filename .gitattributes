@@ -1,1 +1,3 @@
 *.sun linguist-language=rust
+.apollo linguist-language=toml
+apollo.lib linguist-language=toml
