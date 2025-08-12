@@ -35,6 +35,12 @@ pub enum TokenType {
     DIVASSIGN,
     DIVIDE,
     AMPERSAND,
+    ANNOTATION,
+    HASH,
+    MODASSIGN,
+    PERCENT,
+    SQUIGGLE,
+    QUESTION,
     SEMICOLON,
     COLON,
     COMMA,
@@ -80,6 +86,12 @@ impl Display for TokenType {
             TokenType::DIVASSIGN => write!(f, "DIVIDE-ASSIGN"),
             TokenType::DIVIDE => write!(f, "DIVIDE"),
             TokenType::AMPERSAND => write!(f, "AMPERSAND"),
+            TokenType::ANNOTATION => write!(f, "ANNOTATION"),
+            TokenType::HASH => write!(f, "HASH"),
+            TokenType::MODASSIGN => write!(f, "MODULO-ASSIGN"),
+            TokenType::PERCENT => write!(f, "PERCENT"),
+            TokenType::SQUIGGLE => write!(f, "SQUIGGLE"),
+            TokenType::QUESTION => write!(f, "QUESTION"),
             TokenType::SEMICOLON => write!(f, "SEMI-COLON"),
             TokenType::COLON => write!(f, "COLON"),
             TokenType::COMMA => write!(f, "COMMA"),
@@ -519,10 +531,78 @@ impl Lexer {
                     column: self.current_column,
                 });
             }, // handle pass by reference (@a)
-            '#' => { return None; }, // handle annotations like #[extern "..."], #[entry], etc.
-            '%' => { return None; }, // handle a % b, a %= b, etc.
-            '~' => { return None; }, // handle ~a
-            '?' => { return None; }, // idk what to use this for, but handle it anyways
+            '#' => {
+                let next_char = self.peek_char();
+                match next_char {
+                    Some('[') => { // annotations
+                        self.read_char(); // skip opening bracket
+                        let line: usize = self.current_line;
+                        let column: usize = self.current_column;
+                        let mut value: String = "".to_string();
+
+                        while let Some(c) = self.current_char {
+                            if c == ']' {
+                                self.read_char(); // Skip the closing bracket
+                                break;
+                            } else {
+                                value.push(c);
+                                self.read_char();
+                            }
+                        }
+
+                        return Some(LexerToken {
+                            token_type: TokenType::ANNOTATION,
+                            value: value, //TODO: The inside of the annotations will need to be lexed and parsed
+                            line: line,
+                            column: column
+                        });
+                    },
+                    _ => { // could be used for custom operators?
+                        return Some(LexerToken { 
+                            token_type: TokenType::HASH, 
+                            value: '#'.to_string(),
+                            line: self.current_line,
+                            column: self.current_column
+                        });
+                    }
+                }
+            }, // handle annotations like #[extern "..."], #[entry], etc.
+            '%' => {
+                let next_char = self.peek_char();
+                match next_char {
+                    Some('=') => { // %=
+                        self.read_char();
+                        return Some(LexerToken {
+                            token_type: TokenType::MODASSIGN,
+                            value: "/=".to_string(),
+                            line: self.current_line,
+                            column: self.current_column,
+                        });
+                    }
+                    _ => {
+                        return Some(LexerToken {
+                            token_type: TokenType::PERCENT,
+                            value: "%".to_string(),
+                            line: self.current_line,
+                            column: self.current_column
+                        })
+                    }
+                }
+            }, // handle a % b, a %= b, etc.
+            '~' => { return Some(LexerToken {
+                   token_type: TokenType::SQUIGGLE,
+                   value: "~".to_string(),
+                   line: self.current_line,
+                   column: self.current_column 
+                });
+            }, // handle ~a
+            '?' => { return Some(LexerToken {
+                    token_type: TokenType::QUESTION, 
+                    value: "?".to_string(), 
+                    line: self.current_line, 
+                    column: self.current_column 
+                });
+            }, // idk what to use this for, but handle it anyways
             ';' => { return Some(LexerToken {
                     token_type: TokenType::SEMICOLON, 
                     value: ";".to_string(),
