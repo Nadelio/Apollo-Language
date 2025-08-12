@@ -149,6 +149,8 @@ class Game {
   }
 
   fn start() -> Unit { // start the game loop
+    self.dealer~; // shuffle deck
+
     self.players.map { | player: @Player |
       const c1: Card = self.dealer+;
       println("{player.name}'s card: {c1}");
@@ -192,6 +194,8 @@ class Game {
         player.stayed = true;
         return;
       }
+      
+      println("Cards left: {self.dealer?}");
     }
 
     // end state: everyone has either voted to stay, has gotten blackjack, or has busted
