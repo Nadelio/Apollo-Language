@@ -103,11 +103,11 @@ fn calculateRealValue(hand: Vector<Card>) -> [u64; 2] {
   var altsum: u64 = 0;
   hand.foreach { |card: Card|
     match card.face {
-      ACE => {
+      ACE -> {
         sum += 1;
         altsum += 11;
       }
-      _ => {
+      _ -> {
         sum += card.face.value; // explicitly get the value associated with the enum entry
         altsum += card.face.value;
       }
