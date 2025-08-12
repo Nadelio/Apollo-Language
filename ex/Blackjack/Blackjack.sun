@@ -1,0 +1,251 @@
+use stdlib;
+
+// constants
+const DECKSIZE: u64 = 52;
+const NUMSUITS: u64 = 4;
+const NUMFACES: u64 = 13;
+
+enum SUITS {
+    DIAMONDS,
+    CLUBS,
+    SPADES,
+    HEARTS
+}
+
+enum FACES {
+    ACE = 1,
+    TWO,
+    THREE,
+    FOUR,
+    FIVE,
+    SIX,
+    SEVEN,
+    EIGHT,
+    NINE,
+    TEN,
+    JACK = 10,
+    QUEEN = 10,
+    KING = 10
+}
+// Aces are a specical case, so we need to handle them specifically when 
+// calculating hand value
+
+// Card
+struct Card {
+  face: FACES,
+  suit: SUITS
+}
+
+// Deck
+struct Deck {
+  cards: Vector<Card>;
+  topCard: u64; // index of top card
+}
+
+// Dealer
+class Dealer {
+  var deck: Deck;
+
+  fn new() -> Deck {
+    var d: Dealer = new;
+    var c: Vector<Card> = new;
+
+    var i: u64 = 0;
+    for(@i, n => n < NUMFACES) { // for loops automatically increment given u64 by 1, use the for loop overload to change that behavior
+        var j: u64 = 0;
+        for(@j, n => n < NUMSUITS) {
+            c.add(Card { // rust-like struct instantiation
+                face = FACES[i], // you can index into enums to get the appropriate entry 
+                suit = SUITS[j]  // the index is separate from the actual value of the entry
+            });
+        }
+    }
+
+    d.deck = Deck {
+        cards = c,
+        topCard = 51 // last index of the deck
+    }
+
+    return d;
+  }
+
+  fn shuffle() -> Unit { self.deck.cards.shuffle(); }
+
+  fn deal() -> Card {
+    self.deck.topCard--;
+    return self.deck.cards[self.deck.topCard];
+  }
+
+  fn cardsLeft() -> u64 {
+    return self.deck.cards.size - self.deck.topCard - 1; // subtract the 1 because of index offset
+  }
+
+  // fun custom operators
+  unary operator ~() -> Unit { self.shuffle(); }
+  unary operator +() -> Card { return self.deal(); }
+  unary operator ?() -> u64 { return self.cardsLeft(); }
+
+}
+
+// Player
+struct Player {
+  hand: Vector<Card>;
+  handValue: [u64; 2];
+  wins: u64;
+  busted: bool;
+  stayed: bool;
+  won: bool;
+  name: string;
+}
+
+fn calculateRealValue(hand: Vector<Card>) -> [u64; 2] {
+  var sum: u64 = 0;
+  var altsum: u64 = 0;
+  hand.foreach { |card: Card|
+    match card.face {
+      ACE => {
+        sum += 1;
+        altsum += 11;
+      }
+      _ => {
+        sum += card.face.value; // explicitly get the value associated with the enum entry
+        altsum += card.face.value;
+      }
+    }
+  }
+  return {sum, altsum};
+}
+
+fn calculateDisplayValue(hand: Vector<Card>) -> string {
+  var values: [u64; 2] = calculateRealValue(hand);
+
+  if(hand.contains(FACES.ACE)) { return "{values[0]} or {values[1]}."; }
+  else { return "{values[0]}."; }
+}
+
+// Game
+class Game {
+  var dealer: Dealer;
+  var players: Vector<Player>;
+  var winners: Vector<Player>;
+
+  fn new(numPlayers: u64) -> Game {
+    var g: Game = new;
+    g.dealer = Dealer new;
+    g.players = Vector<Player> new;
+    g.winners = Vector<Player> new;
+
+    var i: u64 = 0;
+    for(@i, n => n < numPlayers) {
+      players.add(Player {
+        hand = Vector<Card> new,
+        handValue = 0,
+        wins = 0,
+        name = prompt("Please input your username.\n> ").strip().toLowercase()
+      });
+    }
+
+    return g;
+  }
+
+  fn start() -> Unit { // start the game loop
+    self.players.map { | player: @Player |
+      const c1: Card = self.dealer+;
+      println("{player.name}'s card: {c1}");
+      player.hand.add(c1);
+      player.hand.add(self.dealer+);
+    }
+    self.round();
+  }
+
+  fn round() -> Unit { // individual round
+    self.players.map { | player: @Player | // iterate over each player
+      player.handValue = calculateRealValue(player.hand);
+      if(player.busted) { return; } // skip losers
+      if(player.won) { return; } // skip winners
+      if(player.stay) { return; } // skip those who are staying
+
+      // reveal value to player
+      // value > 21? => bust & skip to next player
+      // prompt for hit or stay
+      // hit? => player.hand.add(self.dealer+);
+      // repeat until either =21, bust, or stay
+      
+      const potentialValue: string = calculateDisplayValue(player.hand);
+      println("Your hand is: {player.hand}\nThe value of your hand is: {potentialValue}");
+
+      if(player.handValue[0] > 21) {
+        println("You bust!");
+        player.busted = true;
+        return; // skip player
+      } else if (player.handValue[0] == 21 || player.handValue[1] == 21){
+        println("Blackjack!")
+        self.winners.add(player);
+        player.won = true;
+        return;
+      }
+
+      const response: string = prompt("Hit or stay?\n> ").strip().truncate(0).toLowercase();
+      if(response == "h") {
+        player.hand.add(self.dealer+);
+      } else { 
+        player.stayed = true;
+        return;
+      }
+    }
+
+    // end state: everyone has either voted to stay, has gotten blackjack, or has busted
+    if(checkEndState) { end(); } else { round(); }
+  }
+
+  fn checkEndState() -> bool {
+    // if ending, return true, otherwise, false
+
+    var playersInEndState: u64 = 0;
+
+    self.players.foreach { | player: Player |
+      if(player.busted || player.stayed || player.won) { playersInEndState++; }
+    }
+
+    if(playersInEndState == players.size()) { return true; } // all players are in an end state
+    else { return false; }
+  }
+
+  fn end() -> Unit { // end state/decide winner
+    // announce all the winners in the winners vector
+    if(self.winners.size() > 0) {
+      self.winners.map { | winner: @Player |
+        winner.wins++;
+        println("{winner.name} has won!");
+      }
+    } else { // if winners vector is empty then the highest value player hand wins
+      
+      var highscore: u64 = 0;
+
+      // get highest value hand
+      self.players.foreach { | player: Player |
+        if(player.handValue[0] > highscore) { highscore = handValue[0]; }
+        else if(player.handValue[1] > highscore) { highscore = handValue[1]; }
+      }
+
+      // check for all the players with a matching hand value
+      self.players.map { | player: @Player | // in the case of a tie, all players who tied win
+        if(player.handValue[0] == highscore) {
+          player.wins++;
+          println("{player.name} has won!");
+        } else if(player.handValue[1] == highscore) {
+          player.wins++;
+          println("{player.name} has won!");
+        }
+      }
+    }
+
+    println("The game has ended!");
+  }
+}
+
+#[entry]
+fn game() -> Unit {
+    var g: Game = new 2; // new blackjack game with 2 players
+    g start;
+}

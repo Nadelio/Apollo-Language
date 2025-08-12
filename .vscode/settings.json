@@ -1,3 +1,9 @@
 {
-    "C_Cpp.errorSquiggles": "disabled"
+    "C_Cpp.errorSquiggles": "disabled",
+    "files.associations": {
+        "*.sun": "rust",
+        "apollo.lib": "toml",
+        ".apollo": "toml"
+    },
+    "workbench.iconTheme": "material-icon-theme",
 }

@@ -1,0 +1,11 @@
+[publisher]
+"Nadelio"
+
+[dependencies]
+stdlib - 1.0.0-R
+
+[version]
+1.0.0-R
+
+[url]
+https://github.com/Nadelio/Blackjack
