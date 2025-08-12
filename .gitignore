@@ -22,4 +22,4 @@ out/logs
 *.log
 
 # VSCode specific ignores
-./.vscode
+.vscode
