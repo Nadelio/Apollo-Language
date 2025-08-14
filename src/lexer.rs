@@ -9,8 +9,7 @@ use util::{ UP, DOWN, LEFT, RIGHT };
 use tui::LoadingBar;
 use util::print_debug;
 
-pub enum TokenType {
-    NUMBER,
+pub enum TokenType { NUMBER,
     IDENTIFIER,
     STRING,
     CHARACTER,
@@ -34,7 +33,19 @@ pub enum TokenType {
     ASSIGN,
     DIVASSIGN,
     DIVIDE,
+    STARASSIGN,
+    STAR,
+    BANGASSIGN,
+    BANG,
+    CARROTASSIGN,
+    CARROT,
+    BITORASSIGN,
+    BOOLOR,
+    BAR,
+    BITANDASSIGN,
+    BOOLAND,
     AMPERSAND,
+    ATSIGN,
     ANNOTATION,
     HASH,
     MODASSIGN,
@@ -85,7 +96,19 @@ impl Display for TokenType {
             TokenType::ASSIGN => write!(f, "ASSIGN"),
             TokenType::DIVASSIGN => write!(f, "DIVIDE-ASSIGN"),
             TokenType::DIVIDE => write!(f, "DIVIDE"),
+            TokenType::STARASSIGN => write!(f, "STAR-ASSIGN"),
+            TokenType::STAR => write!(f, "STAR"),
+            TokenType::BANGASSIGN => write!(f, "BANG-ASSIGN"),
+            TokenType::BANG => write!(f, "BANG"),
+            TokenType::CARROTASSIGN => write!(f, "CARROT-ASSIGN"),
+            TokenType::CARROT => write!(f, "CARROT"),
+            TokenType::BITORASSIGN => write!(f, "BITWISE-OR-ASSIGN"),
+            TokenType::BOOLOR => write!(f, "BOOLEAN OR"),
+            TokenType::BAR => write!(f, "BAR"),
+            TokenType::BITANDASSIGN => write!(f, "BITWISE-AND-ASSIGN"),
+            TokenType::BOOLAND => write!(f, "BOOLEAN AND"),
             TokenType::AMPERSAND => write!(f, "AMPERSAND"),
+            TokenType::ATSIGN => write!(f, "ATSIGN"),
             TokenType::ANNOTATION => write!(f, "ANNOTATION"),
             TokenType::HASH => write!(f, "HASH"),
             TokenType::MODASSIGN => write!(f, "MODULO-ASSIGN"),
@@ -519,13 +542,128 @@ impl Lexer {
                     }
                 }
             }, // handle //a, /* a */, a / b, a /= b
-            '*' => { return None; }, // handle a * b, a *= b, etc.
-            '!' => { return None; }, // handle !a, a != b, etc.
-            '^' => { return None; }, // handle a ^ b, a ^= b, etc.
-            '|' => { return None; }, // handle a | b, a |= b, a || b, lambda parameters (| a: u32 |), etc.
-            '&' => { return None; }, // handle a & b, a &= b, a && b, etc.
+            '*' => {
+                let next_char = self.peek_char();
+                match next_char {
+                    Some('=') => {
+                        return Some(LexerToken {
+                            token_type: TokenType::STARASSIGN,
+                            value: "*=".to_string(),
+                            line: self.current_line,
+                            column: self.current_column
+                        });
+                    },
+                    _ => { return Some(LexerToken {
+                            token_type: TokenType::STAR,
+                            value: "*".to_string(),
+                            line: self.current_line,
+                            column: self.current_column
+                        });
+                    }
+                }
+            }, // handle a * b, a *= b, etc.
+            '!' => {
+                let next_char = self.peek_char();
+                match next_char {
+                    Some('=') => {
+                        return Some(LexerToken {
+                            token_type: TokenType::BANGASSIGN,
+                            value: "!=".to_string(),
+                            line: self.current_line,
+                            column: self.current_column
+                        });
+                    },
+                    _ => {
+                        return Some(LexerToken {
+                            token_type: TokenType::BANG,
+                            value: "!".to_string(),
+                            line: self.current_line,
+                            column: self.current_column
+                        });
+                    }
+                }
+            }, // handle !a, a != b, etc.
+            '^' => {
+                let next_char = self.peek_char();
+                match next_char {
+                    Some('=') => {
+                        return Some(LexerToken {
+                            token_type: TokenType::CARROTASSIGN,
+                            value: "^=".to_string(),
+                            line: self.current_line,
+                            column: self.current_column
+                        });
+                    },
+                    _ => {
+                        return Some(LexerToken {
+                            token_type: TokenType::CARROT,
+                            value: "^".to_string(),
+                            line: self.current_line,
+                            column: self.current_column
+                        });
+                    }
+                }
+            }, // handle a ^ b, a ^= b, etc.
+            '|' => {
+                let next_char = self.peek_char();
+                match next_char {
+                    Some('=') => { // |=
+                        return Some(LexerToken {
+                            token_type: TokenType::BITORASSIGN,
+                            value: "|=".to_string(),
+                            line: self.current_line,
+                            column: self.current_column
+                        });
+                    }
+                    Some('|') => { // boolean or
+                        return Some(LexerToken {
+                            token_type: TokenType::BOOLOR,
+                            value: "||".to_string(),
+                            line: self.current_line,
+                            column: self.current_column
+                        });
+                    }
+                    _ => { // bitwise/lambda params
+                        return Some(LexerToken {
+                           token_type: TokenType::BAR,
+                           value: "|".to_string(),
+                           line: self.current_line,
+                           column: self.current_column
+                        });
+                    }
+                }
+            }, // handle a | b, a |= b, a || b, lambda parameters (| a: u32 |), etc.
+            '&' => {
+                let next_char = self.peek_char();
+                match next_char {
+                   Some('=') => {
+                       return Some(LexerToken {
+                           token_type: TokenType::BITANDASSIGN,
+                           value: "&=".to_string(),
+                           line: self.current_line,
+                           column: self.current_column
+                       });
+                   },
+                   Some('&') => {
+                       return Some(LexerToken {
+                           token_type: TokenType::BOOLAND,
+                           value: "&&".to_string(),
+                           line: self.current_line,
+                           column: self.current_column
+                       });
+                   },
+                   _ => {
+                       return Some(LexerToken {
+                           token_type: TokenType::AMPERSAND,
+                           value: "&".to_string(),
+                           line: self.current_line,
+                           column: self.current_column
+                       });
+                   }
+                }
+            }, // handle a & b, a &= b, a && b, etc.
             '@' => { return Some(LexerToken {
-                    token_type: TokenType::AMPERSAND, 
+                    token_type: TokenType::ATSIGN, 
                     value: "@".to_string(),
                     line: self.current_line,
                     column: self.current_column,
