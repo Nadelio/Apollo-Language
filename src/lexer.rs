@@ -31,6 +31,8 @@ pub enum TokenType { NUMBER,
     EQL,
     LAMBDA,
     ASSIGN,
+    LINECOMMENT,
+    BLOCKCOMMENT,
     DIVASSIGN,
     DIVIDE,
     STARASSIGN,
@@ -94,6 +96,8 @@ impl Display for TokenType {
             TokenType::EQL => write!(f, "EQUALS"),
             TokenType::LAMBDA => write!(f, "LAMBDA"),
             TokenType::ASSIGN => write!(f, "ASSIGN"),
+            TokenType::LINECOMMENT => write!(f, "LINE-COMMENT"),
+            TokenType::BLOCKCOMMENT => write!(f, "BLOCK-COMMENT"),
             TokenType::DIVASSIGN => write!(f, "DIVIDE-ASSIGN"),
             TokenType::DIVIDE => write!(f, "DIVIDE"),
             TokenType::STARASSIGN => write!(f, "STAR-ASSIGN"),
@@ -503,25 +507,41 @@ impl Lexer {
                 match next_char {
                     Some('/') => { // //
                         self.read_char();
+                        let content: String = "".to_string();
                         while let Some(c) = self.current_char {
                             if c == '\n' {
                                 break;
+                            } else {
+                                content.push(c);
                             }
                             self.read_char();
                         }
-                        None //TODO: Change this to return a line comment token
+                        Some(LexerToken {
+                            token_type: TokenType::LINECOMMENT,
+                            value: content,
+                            line: self.current_line,
+                            column: self.current_column
+                        })
                     },
                     Some('*') => { // /* */
                         self.read_char();
+                        let content: String = "".to_string();
                         while let Some(c) = self.current_char {
                             if c == '*' && self.peek_char() == Some('/') {
                                 self.read_char();
                                 self.read_char();
                                 break;
+                            } else {
+                                content.push(c);
                             }
                             self.read_char();
                         }
-                        None //TODO: Change this to return a block comment token
+                        Some(LexerToken {
+                            token_type: TokenType::BLOCKCOMMENT,
+                            value: content,
+                            line: self.current_line,
+                            column: self.current_column
+                        })
                     },
                     Some('=') => { // /=
                         self.read_char();
@@ -873,7 +893,7 @@ impl Lexer {
         let mut value = String::new();
 
         while let Some(c) = self.current_char {
-            if c.is_digit(10) {
+            if c.is_ascii_digit() {
                 value.push(c);
                 self.read_char();
             } else {
@@ -947,6 +967,8 @@ impl Lexer {
         let start_position = self.position;
         let mut value = String::new();
         self.read_char(); // Skip the opening quote
+        
+        let no_escape = self.current_char != Some('\\');
 
         while let Some(c) = self.current_char {
             if c == '\'' {
@@ -958,7 +980,7 @@ impl Lexer {
             }
         }
 
-        if value.len() != 1 {
+        if value.len() != 1 && no_escape {
             eprintln!("{ERR}Error: {MSG}Invalid character literal: {INFO}'{}'{MSG}. Expected a single character.{ERR} Located @ Line: {INFO}{}{ERR}, Column: {INFO}{}{ERR}.{RESET}", value, self.current_line, self.current_column);
             std::process::exit(1);
         }
