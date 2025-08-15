@@ -140,6 +140,7 @@ impl Display for TokenType {
 pub struct LexerToken {
     pub token_type: TokenType,
     pub value: String,
+    pub metadata: Option<Vec<Vec<LexerToken>>>, // string interpolation and annotations
     pub line: usize,
     pub column: usize,
 }
@@ -507,14 +508,15 @@ impl Lexer {
                 match next_char {
                     Some('/') => { // //
                         self.read_char();
-                        let content: String = "".to_string();
+                        let mut content: String = "".to_string();
                         while let Some(c) = self.current_char {
                             if c == '\n' {
+                                self.read_char();
                                 break;
                             } else {
                                 content.push(c);
+                                self.read_char();
                             }
-                            self.read_char();
                         }
                         Some(LexerToken {
                             token_type: TokenType::LINECOMMENT,
@@ -525,16 +527,16 @@ impl Lexer {
                     },
                     Some('*') => { // /* */
                         self.read_char();
-                        let content: String = "".to_string();
+                        let mut content: String = "".to_string();
                         while let Some(c) = self.current_char {
                             if c == '*' && self.peek_char() == Some('/') {
                                 self.read_char();
                                 self.read_char();
                                 break;
                             } else {
+                                self.read_char();
                                 content.push(c);
                             }
-                            self.read_char();
                         }
                         Some(LexerToken {
                             token_type: TokenType::BLOCKCOMMENT,
@@ -942,7 +944,7 @@ impl Lexer {
         let start_position = self.position;
         let mut value = String::new();
         self.read_char(); // Skip the opening quote
-
+        
         while let Some(c) = self.current_char {
             if c == '"' {
                 self.read_char(); // Skip the closing quote
