@@ -937,7 +937,7 @@ impl Lexer {
         })
     }
 
-    fn parse_string(&mut self) -> Option<LexerToken> { //TODO: need to update to be able to handle escape characters like \n, \t, \", \{, \}, \uXXXX, and string interpolation
+    fn parse_string(&mut self) -> Option<LexerToken> { //TODO: need to update to be able to handle escaping \{, \}, and string interpolation
         if self.mode > 1 { print_debug("Parsing string...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();
@@ -962,7 +962,7 @@ impl Lexer {
         })
     }
 
-    fn parse_character(&mut self) -> Option<LexerToken> { //TODO: need to update to be able to handle escape characters like \n, \t, \', and unicode characters like \uXXXX
+    fn parse_character(&mut self) -> Option<LexerToken> { 
         if self.mode > 1 { print_debug("Parsing character...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();

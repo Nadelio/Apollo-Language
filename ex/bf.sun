@@ -3,7 +3,7 @@ use Error;
 
 class InvalidInstruction(instr: string, position: u32) from Error { // classes have an implicit constructor
     const instr: string; // instance variables are private by default
-    const position: u32; // Error has a position parameter already, but in this case you can override it
+    const position: u32; // Error has a position parameter already, but in this case it can be overwritten 
 
     fn panic() -> string { // functions are public by default
         return "Invalid Instruction: {self.instr} @ {self.position}"; // use self.<...> to access instance variables or class functions

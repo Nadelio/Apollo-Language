@@ -105,7 +105,7 @@ fn main() {
         std::io::Write::write_all(&mut log_file, log_content.as_bytes()).expect("Failed to write to log file");
     }
 
-    // -l and --lib flags would be processed similarly, but for now we will skip them
+    // -l and --lib flags would be processed similarly, rn they are unsupported 
 
     // iterate through every file and send them to a compile task (thread pool, max 5 threads/tasks)
     // lexer -> parser -> compiler
@@ -128,8 +128,8 @@ fn main() {
         }
 
         if mode > 0 { println!("{DEBUG}Compiling directory: {INFO}{dir}{RESET}"); }
-
-        // Here you would implement the logic to read files from the directory and compile them
+        
+        // iterate over every valid file in the directory and compile to target
     } else if let Some(file) = file {
         let file = unsanatized_args[file + 1].clone(); // filepath
        
