@@ -177,7 +177,7 @@ pub struct Lexer {
 impl Lexer {
     pub fn new(filepath: String, mode: u8, logging: bool, output_dir: String) -> Self {
         let content = std::fs::read_to_string(&filepath)
-            .map_err(|_e| ApolloError::new(format!("Failed to read file: {}", filepath), Some(0), None, None));
+            .map_err(|_e| ApolloError::new(format!("Failed to read file: {filepath}"), Some(0), None, None));
         let content = match content {
             Ok(c) => c,
             Err(e) => {
@@ -257,7 +257,7 @@ impl Lexer {
                                                 .round() as i32, false);
             }
         }
-        return Result::Ok(tokens); 
+        Result::Ok(tokens)
     }
 
     pub fn next_token(&mut self) -> Option<LexerToken> {
@@ -276,20 +276,20 @@ impl Lexer {
         match self.current_char.unwrap() {
             '0'..='9' => { //TODO: handle hexadecimal, octal, binary, and float numbers -> 0x is hex, 0o is octal, 0b is binary, and float numbers can be handled with a decimal point and an f suffix
                 if self.mode > 1 { print_debug("Found digit, parsing number...", "", self.logging, &self.output_dir); }
-                return self.parse_number();
+                self.parse_number()
             },
             'a'..='z' | 'A'..='Z' | '_' => {
                 if self.mode > 1 { print_debug("Found identifier character, parsing identifier...", "", self.logging, &self.output_dir); }
-                return self.parse_identifier();
+                self.parse_identifier()
             },
             '"' => {
                 if self.mode > 1 { print_debug("Found string delimiter, parsing string...", "", self.logging, &self.output_dir); }
-                return self.parse_string(); // need to handle escape characters in strings
+                self.parse_string() // need to handle escape characters in strings
             },
             '\'' => {
                 if self.mode > 1 { print_debug("Found character delimiter, parsing character...", "", self.logging, &self.output_dir); }
                 // need to handle escape characters in characters, like '\uXXXXX'
-                return self.parse_character();
+                self.parse_character()
             },
             '<' | '>' => { // handle <, <=, >, >=, >>, <<, >>=, <<=
                 let c = self.current_char.unwrap();
@@ -298,25 +298,25 @@ impl Lexer {
                     Some('=') => { // <= or >=
                         self.read_char();
                         if c == '<' {
-                            return Some(LexerToken {
+                            Some(LexerToken {
                                 token_type: TokenType::LESSEQL,
                                 value: "<=".to_string(),
                                 line: self.current_line,
                                 column: self.current_column,
-                            });
+                            })
                         } else if c == '>' {
-                            return Some(LexerToken {
+                            Some(LexerToken {
                                 token_type: TokenType::GREATEREQL,
                                 value: ">=".to_string(),
                                 line: self.current_line,
                                 column: self.current_column,
-                            });
-                        } else { return Some(LexerToken {
+                            })
+                        } else { Some(LexerToken {
                                 token_type: TokenType::ERROR,
                                 value: format!("{c}{}", next_char.unwrap()).to_string(),
                                 line: self.current_line,
                                 column: self.current_column,
-                            }); 
+                            }) 
                         } // This should not happen
                     },
                     Some('>') => { // >> or >>=
@@ -331,18 +331,18 @@ impl Lexer {
                                     column: self.current_column,
                                 });
                             }
-                            return Some(LexerToken {
+                            Some(LexerToken {
                                 token_type: TokenType::RIGHTSHIFT,
                                 value: ">>".to_string(),
                                 line: self.current_line,
                                 column: self.current_column,
-                            });
-                        } else { return Some(LexerToken {
+                            })
+                        } else { Some(LexerToken {
                                 token_type: TokenType::ERROR,
                                 value: format!("{c}{}", next_char.unwrap()).to_string(),
                                 line: self.current_line,
                                 column: self.current_column,
-                            });
+                            })
                         } // This should not happen
                     },
                     Some('<') => { // << or <<=
@@ -357,41 +357,41 @@ impl Lexer {
                                     column: self.current_column,
                                 });
                             }
-                            return Some(LexerToken {
+                            Some(LexerToken {
                                 token_type: TokenType::LEFTSHIFT,
                                 value: "<<".to_string(),
                                 line: self.current_line,
                                 column: self.current_column,
-                            });
-                        } else { return Some(LexerToken {
+                            })
+                        } else { Some(LexerToken {
                                 token_type: TokenType::ERROR,
                                 value: format!("{c}{}", next_char.unwrap()).to_string(),
                                 line: self.current_line,
                                 column: self.current_column,
-                            });
+                            })
                         } // This should not happen
                     },
                     _  => { // < or >
                         if c == '<' {
-                            return Some(LexerToken {
+                            Some(LexerToken {
                                 token_type: TokenType::LESS,
                                 value: "<".to_string(),
                                 line: self.current_line,
                                 column: self.current_column,
-                            });
+                            })
                         } else if c == '>' {
-                            return Some(LexerToken {
+                            Some(LexerToken {
                                 token_type: TokenType::GREATER,
                                 value: ">".to_string(),
                                 line: self.current_line,
                                 column: self.current_column,
-                            });
-                        } else { return Some(LexerToken {
+                            })
+                        } else { Some(LexerToken {
                                 token_type: TokenType::ERROR,
                                 value: c.to_string(),
                                 line: self.current_line,
                                 column: self.current_column,
-                            });
+                            })
                         }
                     }
                 }
@@ -401,24 +401,24 @@ impl Lexer {
                 match next_char {
                     Some('+') => { // ++
                         self.read_char();
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::INCREMENT,
                             value: "++".to_string(),
                             line: self.current_line,
                             column: self.current_column,
-                        });
+                        })
                     },
                     Some('=') => { // +=
                         self.read_char();
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::ADDASSIGN,
                             value: "+=".to_string(),
                             line: self.current_line,
                             column: self.current_column,
-                        });
+                        })
                     },
                     _ => { // +
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::PLUS,
                             value: "+".to_string(),
                             line: self.current_line,
@@ -432,38 +432,38 @@ impl Lexer {
                 match next_char {
                     Some('-') => { // -- 
                         self.read_char();
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::DECREMENT,
                             value: "--".to_string(),
                             line: self.current_line,
                             column: self.current_column,
-                        });
+                        })
                     },
                     Some('>') => { // ->
                         self.read_char();
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::RIGHTARROW,
                             value: "->".to_string(),
                             line: self.current_line,
                             column: self.current_column,
-                        });
+                        })
                     },
                     Some('=') => { // -=
                         self.read_char();
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::SUBASSIGN,
                             value: "-=".to_string(),
                             line: self.current_line,
                             column: self.current_column,
-                        });
+                        })
                     },
                     _ => { // -
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::MINUS,
                             value: "-".to_string(),
                             line: self.current_line,
                             column: self.current_column,
-                        });
+                        })
                     }
                 }
             }, // handle a--, a - b, -a, ->, a -= b
@@ -472,29 +472,29 @@ impl Lexer {
                 match next_char {
                     Some('=') => { // ==
                         self.read_char();
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::EQL,
                             value: "==".to_string(),
                             line: self.current_line,
                             column: self.current_column,
-                        });
+                        })
                     },
                     Some('>') => { // =>
                         self.read_char();
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::LAMBDA,
                             value: "=>".to_string(),
                             line: self.current_line,
                             column: self.current_column
-                        });
+                        })
                     }
                     _ => {
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::ASSIGN,
                             value: "=".to_string(),
                             line: self.current_line,
                             column: self.current_column,
-                        });
+                        })
                     }
                 }
             }, // handle a = b, ==, =>
@@ -509,7 +509,7 @@ impl Lexer {
                             }
                             self.read_char();
                         }
-                        return None; //TODO: Change this to return a line comment token
+                        None //TODO: Change this to return a line comment token
                     },
                     Some('*') => { // /* */
                         self.read_char();
@@ -521,24 +521,24 @@ impl Lexer {
                             }
                             self.read_char();
                         }
-                        return None; //TODO: Change this to return a block comment token
+                        None //TODO: Change this to return a block comment token
                     },
                     Some('=') => { // /=
                         self.read_char();
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::DIVASSIGN,
                             value: "/=".to_string(),
                             line: self.current_line,
                             column: self.current_column,
-                        });
+                        })
                     },
                     _ => { // /
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::DIVIDE,
                             value: "/".to_string(),
                             line: self.current_line,
                             column: self.current_column,
-                        });
+                        })
                     }
                 }
             }, // handle //a, /* a */, a / b, a /= b
@@ -546,19 +546,20 @@ impl Lexer {
                 let next_char = self.peek_char();
                 match next_char {
                     Some('=') => {
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::STARASSIGN,
                             value: "*=".to_string(),
                             line: self.current_line,
                             column: self.current_column
-                        });
+                        })
                     },
-                    _ => { return Some(LexerToken {
+                    _ => { 
+                        Some(LexerToken {
                             token_type: TokenType::STAR,
                             value: "*".to_string(),
                             line: self.current_line,
                             column: self.current_column
-                        });
+                        })
                     }
                 }
             }, // handle a * b, a *= b, etc.
@@ -566,20 +567,20 @@ impl Lexer {
                 let next_char = self.peek_char();
                 match next_char {
                     Some('=') => {
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::BANGASSIGN,
                             value: "!=".to_string(),
                             line: self.current_line,
                             column: self.current_column
-                        });
+                        })
                     },
                     _ => {
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::BANG,
                             value: "!".to_string(),
                             line: self.current_line,
                             column: self.current_column
-                        });
+                        })
                     }
                 }
             }, // handle !a, a != b, etc.
@@ -587,20 +588,20 @@ impl Lexer {
                 let next_char = self.peek_char();
                 match next_char {
                     Some('=') => {
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::CARROTASSIGN,
                             value: "^=".to_string(),
                             line: self.current_line,
                             column: self.current_column
-                        });
+                        })
                     },
                     _ => {
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::CARROT,
                             value: "^".to_string(),
                             line: self.current_line,
                             column: self.current_column
-                        });
+                        })
                     }
                 }
             }, // handle a ^ b, a ^= b, etc.
@@ -608,28 +609,28 @@ impl Lexer {
                 let next_char = self.peek_char();
                 match next_char {
                     Some('=') => { // |=
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::BITORASSIGN,
                             value: "|=".to_string(),
                             line: self.current_line,
                             column: self.current_column
-                        });
+                        })
                     }
                     Some('|') => { // boolean or
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::BOOLOR,
                             value: "||".to_string(),
                             line: self.current_line,
                             column: self.current_column
-                        });
+                        })
                     }
                     _ => { // bitwise/lambda params
-                        return Some(LexerToken {
+                        Some(LexerToken {
                            token_type: TokenType::BAR,
                            value: "|".to_string(),
                            line: self.current_line,
                            column: self.current_column
-                        });
+                        })
                     }
                 }
             }, // handle a | b, a |= b, a || b, lambda parameters (| a: u32 |), etc.
@@ -637,37 +638,37 @@ impl Lexer {
                 let next_char = self.peek_char();
                 match next_char {
                    Some('=') => {
-                       return Some(LexerToken {
+                       Some(LexerToken {
                            token_type: TokenType::BITANDASSIGN,
                            value: "&=".to_string(),
                            line: self.current_line,
                            column: self.current_column
-                       });
+                       })
                    },
                    Some('&') => {
-                       return Some(LexerToken {
+                       Some(LexerToken {
                            token_type: TokenType::BOOLAND,
                            value: "&&".to_string(),
                            line: self.current_line,
                            column: self.current_column
-                       });
+                       })
                    },
                    _ => {
-                       return Some(LexerToken {
+                       Some(LexerToken {
                            token_type: TokenType::AMPERSAND,
                            value: "&".to_string(),
                            line: self.current_line,
                            column: self.current_column
-                       });
+                       })
                    }
                 }
             }, // handle a & b, a &= b, a && b, etc.
-            '@' => { return Some(LexerToken {
+            '@' => { Some(LexerToken {
                     token_type: TokenType::ATSIGN, 
                     value: "@".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                });
+                })
             }, // handle pass by reference (@a)
             '#' => {
                 let next_char = self.peek_char();
@@ -688,20 +689,20 @@ impl Lexer {
                             }
                         }
 
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::ANNOTATION,
-                            value: value, //TODO: The inside of the annotations will need to be lexed and parsed
-                            line: line,
-                            column: column
-                        });
+                            value, //TODO: The inside of the annotations will need to be lexed and parsed
+                            line,
+                            column
+                        })
                     },
                     _ => { // could be used for custom operators?
-                        return Some(LexerToken { 
+                        Some(LexerToken { 
                             token_type: TokenType::HASH, 
                             value: '#'.to_string(),
                             line: self.current_line,
                             column: self.current_column
-                        });
+                        })
                     }
                 }
             }, // handle annotations like #[extern "..."], #[entry], etc.
@@ -710,15 +711,15 @@ impl Lexer {
                 match next_char {
                     Some('=') => { // %=
                         self.read_char();
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::MODASSIGN,
                             value: "/=".to_string(),
                             line: self.current_line,
                             column: self.current_column,
-                        });
+                        })
                     }
                     _ => {
-                        return Some(LexerToken {
+                        Some(LexerToken {
                             token_type: TokenType::PERCENT,
                             value: "%".to_string(),
                             line: self.current_line,
@@ -727,119 +728,131 @@ impl Lexer {
                     }
                 }
             }, // handle a % b, a %= b, etc.
-            '~' => { return Some(LexerToken {
+            '~' => {
+                Some(LexerToken {
                    token_type: TokenType::SQUIGGLE,
                    value: "~".to_string(),
                    line: self.current_line,
                    column: self.current_column 
-                });
+                })
             }, // handle ~a
-            '?' => { return Some(LexerToken {
+            '?' => { 
+                Some(LexerToken {
                     token_type: TokenType::QUESTION, 
                     value: "?".to_string(), 
                     line: self.current_line, 
                     column: self.current_column 
-                });
+                })
             }, // idk what to use this for, but handle it anyways
-            ';' => { return Some(LexerToken {
+            ';' => { 
+                Some(LexerToken {
                     token_type: TokenType::SEMICOLON, 
                     value: ";".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                }); 
+                }) 
             }, // end statements
-            ',' => { return Some(LexerToken {
+            ',' => { 
+                Some(LexerToken {
                     token_type: TokenType::COMMA, 
                     value: ",".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                });
+                })
             }, // used for separating items in lists, function arguments, etc.
-            ':' => { return Some(LexerToken {
+            ':' => {
+                Some(LexerToken {
                     token_type: TokenType::COLON, 
                     value: ":".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                });
+                })
             }, // used for type declarataions (a: u32)
-            '.' => { return Some(LexerToken {
+            '.' => {
+               Some(LexerToken {
                     token_type: TokenType::DOT, 
                     value: ".".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                });
+                })
             }, // used for method calls (a.b()), field access (a.b), etc.
-            '(' => { return Some(LexerToken {
+            '(' => {
+                Some(LexerToken {
                     token_type: TokenType::LEFTPAREN, 
                     value: "(".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                });
+                })
             }, // used for function calls (a()), grouping expressions ((a + b)), etc.
-            ')' => { return Some(LexerToken {
+            ')' => {
+                Some(LexerToken {
                     token_type: TokenType::RIGHTPAREN, 
                     value: ")".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                });
+                })
             }, // used for closing function calls, grouping expressions, etc.
-            '{' => { return Some(LexerToken {
+            '{' => {
+                Some(LexerToken {
                     token_type: TokenType::LEFTBRACE, 
                     value: "{".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                });
+                })
             }, // used for starting blocks of code (if, for, while, etc.) and string interpolation "{a + b}"
-            '}' => { return Some(LexerToken {
+            '}' => {
+                Some(LexerToken {
                     token_type: TokenType::RIGHTBRACE, 
                     value: "}".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                });
+                })
             }, // used for closing blocks of code and string interpolation
-            '[' => { return Some(LexerToken {
+            '[' => {
+                Some(LexerToken {
                     token_type: TokenType::LEFTBRACKET, 
                     value: "[".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                });
+                })
             }, // used for starting arrays and indexing
-            ']' => { return Some(LexerToken {
+            ']' => {
+                Some(LexerToken {
                     token_type: TokenType::RIGHTBRACKET, 
                     value: "]".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                });
+                })
             }, // used for closing arrays and indexing
             '\n' => {
                 if self.mode > 1 { print_debug("Found newline...", "", self.logging, &self.output_dir); }
-                return Some(LexerToken {
+                Some(LexerToken {
                     token_type: TokenType::NEWLINE,
                     value: "\\n".to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                });
+                })
             },
             ' ' | '\t' | '\r' => {
                 if self.mode > 1 { print_debug("Found whitespace, skipping...", "", self.logging, &self.output_dir); }
                 self.read_char(); // Skip whitespace character
-                return self.next_token(); // Continue to the next character
+                self.next_token() // Continue to the next character
             },
             _ => {
                 if self.mode > 1 { print_debug("Found unknown character: ", &self.current_char.unwrap_or(' ').to_string(), self.logging, &self.output_dir); }
-                return Some(LexerToken {
+                Some(LexerToken {
                     token_type: TokenType::UNKNOWN,
                     value: self.current_char.unwrap_or(' ').to_string(),
                     line: self.current_line,
                     column: self.current_column,
-                }); // Return error token for unknown characters
+                }) // Return error token for unknown characters
             }
         }
     }
 
     fn backtrack(&mut self) {
         if self.mode > 1 { print_debug("Backtracking...", "", self.logging, &self.output_dir); }
-        if self.position <= 0 {
+        if self.position == 0 {
             self.current_char = None;
         } else {
             self.current_char = self.content.chars().nth(self.position);
@@ -880,7 +893,7 @@ impl Lexer {
     
     //TODO: parse_hexadecimal, parse_octal, parse_binary, parse_float
 
-    fn parse_identifier(&mut self) -> Option<LexerToken> { // there is a weird issue with this, "panic" keyword gets cut off, need to do some testing
+    fn parse_identifier(&mut self) -> Option<LexerToken> { 
         if self.mode > 1 { print_debug("Parsing identifier...", "", self.logging, &self.output_dir); }
         let start_position = self.position;
         let mut value = String::new();

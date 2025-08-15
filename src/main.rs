@@ -4,13 +4,14 @@ pub mod tui;
 
 use lexer::Lexer;
 use util::{ ERR, SUCCESS, INFO, MSG, DEBUG, RESET, CLEAR };
+use std::path::Path;
 
 const VERSION: &str = "0.0.0-A";
 
 fn main() {
     // take in cmdline args
     let args: Vec<String> = std::env::args().map(|x| x.to_lowercase()).collect();
-    let unstanitized_args: Vec<String> = std::env::args().map(|x| x).collect();
+    let unsanatized_args: Vec<String> = std::env::args().collect();
     // if `-f` or `--file`, then specify the file to compile, fail if both `-f` and `--dir` flags are not found
     // if `--dir`, then specify the directory to compile, fail if `-f` flag is also found`
 
@@ -36,22 +37,22 @@ fn main() {
     let help_flag = args.contains(&"-h".to_string()) || args.contains(&"--help".to_string());
     let version_flag = args.contains(&"--version".to_string());
     if help_flag {
-        println!("{}Usage: apollo [options]\nOptions:\n  -f, --file <file>    Specify a file to compile\n  --dir <directory>    Specify a directory to compile\n  -d, --debug          Enable debug mode\n  -v, --verbose        Enable verbose mode\n  -q, --quiet          Disable all output except for errors\n  -o, --output <dir>   Specify the output directory (default: ./out)\n  -l, --lib <libs>     Specify libraries to pull and compile\n  -h, --help           Show this help message\n  --log                Enable logging, placed in <output dir>/logs/\n  --version            Show version number\nVersions are in the format <major>.<minor>.<patch>-<Alpha/Beta/Release>\n{}", MSG, RESET);
-        std::process::exit(0);  
+        println!("{MSG}Usage: apollo [options]\nOptions:\n  -f, --file <file>    Specify a file to compile\n  --dir <directory>    Specify a directory to compile\n  -d, --debug          Enable debug mode\n  -v, --verbose        Enable verbose mode\n  -q, --quiet          Disable all output except for errors\n  -o, --output <dir>   Specify the output directory (default: ./out)\n  -l, --lib <libs>     Specify libraries to pull and compile\n  -h, --help           Show this help message\n  --log                Enable logging, placed in <output dir>/logs/\n  --version            Show version number\nVersions are in the format <major>.<minor>.<patch>-<Alpha/Beta/Release>\n{RESET}");
+        return;  
     }
     if version_flag {
-        println!("{}Apollo Compiler Version: {}{}{}", MSG, INFO, VERSION, RESET);
-        std::process::exit(0);
+        println!("{MSG}Apollo Compiler Version: {INFO}{VERSION}{RESET}");
+        return;
     }
     
     let logging = args.contains(&"--log".to_string());
 
     if file.is_some() && dir.is_some() {
-        eprintln!("{}Error: {}Cannot specify both -f/--file and --dir flags.{}", ERR, MSG, RESET);
-        std::process::exit(1);
+        eprintln!("{ERR}Error: {MSG}Cannot specify both -f/--file and --dir flags.{RESET}");
+        return;
     } else if file.is_none() && dir.is_none() {
-        eprintln!("{}Error: {}Must specify either -f/--file or --dir flag.{}", ERR, MSG, RESET);
-        std::process::exit(1);
+        eprintln!("{ERR}Error: {MSG}Must specify either -f/--file or --dir flag.{RESET}");
+        return;
     }
 
     // Process other flags like `-d`, `-v`, `-q`, `-o`, `-l`, `-h`, and `--version`
@@ -62,12 +63,12 @@ fn main() {
     // debug mode does small things like print the file being compiled, verbose mode prints additional information
     // verbose is only available if debug mode is enabled, quiet mode is only available if debug mode is off
     if !debug && verbose {
-        eprintln!("{}Error: {}-v/--verbose flag requires -d/--debug flag to be enabled.{}", ERR, MSG, RESET);
-        std::process::exit(1);
+        eprintln!("{ERR}Error: {MSG}-v/--verbose flag requires -d/--debug flag to be enabled.{RESET}");
+        return;
     }
 
     if (debug || verbose) && quiet {
-        eprintln!("{}Error: {}-q/--quiet flag cannot be used with -d/--debug or -v/--verbose flags.{}", ERR, MSG, RESET);
+        eprintln!("{ERR}Error: {MSG}-q/--quiet flag cannot be used with -d/--debug or -v/--verbose flags.{RESET}");
         std::process::exit(1);
     }
 
@@ -76,17 +77,15 @@ fn main() {
         if index + 1 < args.len() {
             Some(args[index + 1].clone())
         } else {
-            eprintln!("{}Error: {}-o/--output flag requires a directory argument.{}", ERR, MSG, RESET);
+            eprintln!("{ERR}Error: {MSG}-o/--output flag requires a directory argument.{RESET}");
             std::process::exit(1);
         }
     }).unwrap_or_else(|| "./out/".to_string());
 
     // create output folder if it doesn't exist
-    if !output_dir.is_empty() {
-        if let Err(e) = std::fs::create_dir_all(&output_dir) {
+    if !output_dir.is_empty() && let Err(e) = std::fs::create_dir_all(&output_dir) {
             eprintln!("{ERR}Error: {MSG}Failed to create output directory: {output_dir}.{RESET} {e}");
             std::process::exit(1);
-        }
     }
 
     if logging {
@@ -102,7 +101,7 @@ fn main() {
             eprintln!("{ERR}Error: {MSG}Failed to create log file: {log_file_path}.{RESET} {e}");
             std::process::exit(1);
         });
-        let log_content = format!("Apollo Compiler Version: {}\n", VERSION);
+        let log_content = format!("Apollo Compiler Version: {VERSION}\n");
         std::io::Write::write_all(&mut log_file, log_content.as_bytes()).expect("Failed to write to log file");
     }
 
@@ -119,18 +118,33 @@ fn main() {
 
     print!("{CLEAR}");
 
-    if dir.is_some() {
-        let dir = args[dir.unwrap() + 1].clone();
-        if mode > 0 { println!("{}Compiling directory: {}{}{}", DEBUG, INFO, dir, RESET); }
+    if let Some(dir) = dir {
+        let dir = unsanatized_args[dir + 1].clone();
+        
+        let p = Path::new(&dir);
+        if !p.is_dir() {
+            eprintln!("{ERR}Error: {MSG}{dir} does not exist in the current working directory.{RESET}");
+            std::process::exit(1);
+        }
+
+        if mode > 0 { println!("{DEBUG}Compiling directory: {INFO}{dir}{RESET}"); }
+
         // Here you would implement the logic to read files from the directory and compile them
-    } else if file.is_some() {
-        let file = unstanitized_args[file.unwrap() + 1].clone(); // filepath
-        if mode > 0 { println!("{}Compiling file: {}{}{}", DEBUG, INFO, file, RESET); }
+    } else if let Some(file) = file {
+        let file = unsanatized_args[file + 1].clone(); // filepath
+       
+        let p = Path::new(&file);
+        if !p.exists() {
+               eprintln!("{ERR}Error: {MSG}{file} does not exist in the current working directory.{RESET}");
+                std::process::exit(1);
+        }
+
+        if mode > 0 { println!("{DEBUG}Compiling file: {INFO}{file}{RESET}"); }
         
         let result = Lexer::new(file, mode, logging, output_dir).begin();
         match result {
             Ok(_tokens) => {
-                if mode > 0 { println!("{}Lexing completed successfully.{}", SUCCESS, RESET); }
+                if mode > 0 { println!("{SUCCESS}Lexing completed successfully.{RESET}"); }
                 //TODO: if logging flag, write tokens to logs/lexer_tokens.log file
                 //TODO: if logging flag, write parser_tree to logs/parser_tree.log file
             },
@@ -139,5 +153,8 @@ fn main() {
                 std::process::exit(1);
             }
         }
+    } else {
+        eprintln!("{ERR}Error: {MSG}Encountered an unexpected compiler state, quitting...{RESET}");
+        std::process::exit(1);
     }
 }
