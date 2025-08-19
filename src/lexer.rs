@@ -1,15 +1,16 @@
 use std::fmt::Display;
 
-use crate::util;
 use crate::tui;
+use crate::util;
 
-use util::ApolloError;
-use util::{ ERR, SUCCESS, INFO, MSG, DEBUG, RESET };
-use util::{ UP, DOWN, LEFT, RIGHT };
 use tui::LoadingBar;
 use util::print_debug;
+use util::ApolloError;
+use util::{DEBUG, ERR, INFO, MSG, RESET, SUCCESS};
+use util::{DOWN, LEFT, RIGHT, UP};
 
-pub enum TokenType { NUMBER,
+pub enum TokenType {
+    NUMBER,
     IDENTIFIER,
     STRING,
     CHARACTER,
@@ -140,14 +141,22 @@ impl Display for TokenType {
 pub struct LexerToken {
     pub token_type: TokenType,
     pub value: String,
-    pub metadata: Option<Vec<Vec<LexerToken>>>, // string interpolation and annotations
+    pub metadata: Vec<Vec<LexerToken>>, // string interpolation and annotations
     pub line: usize,
     pub column: usize,
 }
 
 impl Display for LexerToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {} (Line: {}, Column: {})", self.token_type, self.value, self.line, self.column)
+        let mut additional_data = "".to_string();
+        if !self.metadata.is_empty() {
+            additional_data.push_str("\nMetadata: {self.metadata}");
+        }
+        write!(
+            f,
+            "{}: {} (Line: {}, Column: {}){}",
+            self.token_type, self.value, self.line, self.column, additional_data
+        )
     }
 }
 
@@ -156,6 +165,7 @@ impl Default for LexerToken {
         LexerToken {
             token_type: TokenType::ERROR,
             value: "".to_string(),
+            metadata: Vec::new(),
             line: 0,
             column: 0,
         }
@@ -164,15 +174,15 @@ impl Default for LexerToken {
 
 pub struct Lexer {
     filepath: String,
-    mode: u8, // 0: quiet, 1: debug, 2: verbose
-    logging: bool, // Whether to log debug messages
-    output_dir: String, // Directory for output files and logs
+    mode: u8,                // 0: quiet, 1: debug, 2: verbose
+    logging: bool,           // Whether to log debug messages
+    output_dir: String,      // Directory for output files and logs
     loading_bar: LoadingBar, // Loading bar for visual feedback
 
     //TODO: Additional fields for lexer state here
-    content: String, // The content of the file being lexed
-    position: usize, // Current position in the content
-    read_position: usize, // Position of the character being read
+    content: String,            // The content of the file being lexed
+    position: usize,            // Current position in the content
+    read_position: usize,       // Position of the character being read
     current_char: Option<char>, // Current character being processed
 
     current_line: usize, // Current line number // increment when a newline is encountered
@@ -181,8 +191,14 @@ pub struct Lexer {
 
 impl Lexer {
     pub fn new(filepath: String, mode: u8, logging: bool, output_dir: String) -> Self {
-        let content = std::fs::read_to_string(&filepath)
-            .map_err(|_e| ApolloError::new(format!("Failed to read file: {filepath}"), Some(0), None, None));
+        let content = std::fs::read_to_string(&filepath).map_err(|_e| {
+            ApolloError::new(
+                format!("Failed to read file: {filepath}"),
+                Some(0),
+                None,
+                None,
+            )
+        });
         let content = match content {
             Ok(c) => c,
             Err(e) => {
@@ -213,11 +229,25 @@ impl Lexer {
 
     fn read_char(&mut self) {
         if self.read_position >= self.content.len() {
-            if self.mode > 0 { print_debug("Reached end of file: ", &self.filepath, self.logging, &self.output_dir); }
+            if self.mode > 0 {
+                print_debug(
+                    "Reached end of file: ",
+                    &self.filepath,
+                    self.logging,
+                    &self.output_dir,
+                );
+            }
             self.current_char = None; // End of file
         } else {
             self.current_char = Some(self.content.chars().nth(self.read_position).unwrap());
-            if self.mode > 1 { print_debug("Reading char: ", &self.current_char.unwrap().to_string(), self.logging, &self.output_dir); }
+            if self.mode > 1 {
+                print_debug(
+                    "Reading char: ",
+                    &self.current_char.unwrap().to_string(),
+                    self.logging,
+                    &self.output_dir,
+                );
+            }
         }
 
         self.position = self.read_position;
@@ -229,83 +259,164 @@ impl Lexer {
             self.current_column = 0; // Reset column number
         }
 
-        if self.mode > 1 { print_debug("Current position: ", &self.position.to_string(), self.logging, &self.output_dir); }
+        if self.mode > 1 {
+            print_debug(
+                "Current position: ",
+                &self.position.to_string(),
+                self.logging,
+                &self.output_dir,
+            );
+        }
     }
 
     fn peek_char(&self) -> Option<char> {
         if self.read_position >= self.content.len() {
             None // No more characters to read
         } else {
-            if self.mode > 1 { print_debug("Peeking char: ", &self.content.chars().nth(self.read_position).unwrap().to_string(), self.logging, &self.output_dir); }
+            if self.mode > 1 {
+                print_debug(
+                    "Peeking char: ",
+                    &self
+                        .content
+                        .chars()
+                        .nth(self.read_position)
+                        .unwrap()
+                        .to_string(),
+                    self.logging,
+                    &self.output_dir,
+                );
+            }
             Some(self.content.chars().nth(self.read_position).unwrap())
         }
     }
 
     pub fn begin(&mut self) -> Result<Vec<LexerToken>, ApolloError> {
-        if self.mode > 0 { print_debug("Lexing file: ", &self.filepath, self.logging, &self.output_dir); } // debug msg
+        if self.mode > 0 {
+            print_debug(
+                "Lexing file: ",
+                &self.filepath,
+                self.logging,
+                &self.output_dir,
+            );
+        } // debug msg
         let mut tokens: Vec<LexerToken> = Vec::new();
         while self.current_char.is_some() {
             let tok = self.next_token();
-            let tok = tok.unwrap_or_else(|| {
-                LexerToken {
-                    token_type: TokenType::ERROR,
-                    value: "".to_string(),
-                    line: self.current_line,
-                    column: self.current_column,
-                }
+            let tok = tok.unwrap_or_else(|| LexerToken {
+                token_type: TokenType::ERROR,
+                value: "".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
             });
-            if self.mode > 1 { print_debug("Token generated: ", &tok.to_string(), self.logging, &self.output_dir); }
+            if self.mode > 1 {
+                print_debug(
+                    "Token generated: ",
+                    &tok.to_string(),
+                    self.logging,
+                    &self.output_dir,
+                );
+            }
             tokens.push(tok);
             self.read_char();
             if self.mode == 0 {
-                self.loading_bar.lerp(((self.position as f32 / self.content.len() as f32) * 100.0)
-                                                .round() as i32, false);
+                self.loading_bar.lerp(
+                    ((self.position as f32 / self.content.len() as f32) * 100.0).round() as i32,
+                    false,
+                );
             }
         }
         Result::Ok(tokens)
     }
 
     pub fn next_token(&mut self) -> Option<LexerToken> {
-        if self.mode > 1 { print_debug("Generating next token...", "", self.logging, &self.output_dir); }
+        if self.mode > 1 {
+            print_debug(
+                "Generating next token...",
+                "",
+                self.logging,
+                &self.output_dir,
+            );
+        }
 
         if self.current_char.is_none() {
-            if self.mode > 0 { print_debug("No more characters to read.", "", self.logging, &self.output_dir); }
+            if self.mode > 0 {
+                print_debug(
+                    "No more characters to read.",
+                    "",
+                    self.logging,
+                    &self.output_dir,
+                );
+            }
             return Some(LexerToken {
                 token_type: TokenType::EOF,
                 value: "".to_string(),
+                metadata: Vec::new(),
                 line: self.current_line,
                 column: self.current_column,
             });
         }
 
         match self.current_char.unwrap() {
-            '0'..='9' => { //TODO: handle hexadecimal, octal, binary, and float numbers -> 0x is hex, 0o is octal, 0b is binary, and float numbers can be handled with a decimal point and an f suffix
-                if self.mode > 1 { print_debug("Found digit, parsing number...", "", self.logging, &self.output_dir); }
+            '0'..='9' => {
+                //TODO: handle hexadecimal, octal, binary, and float numbers -> 0x is hex, 0o is octal, 0b is binary, and float numbers can be handled with a decimal point and an f suffix
+                if self.mode > 1 {
+                    print_debug(
+                        "Found digit, parsing number...",
+                        "",
+                        self.logging,
+                        &self.output_dir,
+                    );
+                }
                 self.parse_number()
-            },
+            }
             'a'..='z' | 'A'..='Z' | '_' => {
-                if self.mode > 1 { print_debug("Found identifier character, parsing identifier...", "", self.logging, &self.output_dir); }
+                if self.mode > 1 {
+                    print_debug(
+                        "Found identifier character, parsing identifier...",
+                        "",
+                        self.logging,
+                        &self.output_dir,
+                    );
+                }
                 self.parse_identifier()
-            },
+            }
             '"' => {
-                if self.mode > 1 { print_debug("Found string delimiter, parsing string...", "", self.logging, &self.output_dir); }
+                if self.mode > 1 {
+                    print_debug(
+                        "Found string delimiter, parsing string...",
+                        "",
+                        self.logging,
+                        &self.output_dir,
+                    );
+                }
                 self.parse_string() // need to handle escape characters in strings
-            },
+            }
             '\'' => {
-                if self.mode > 1 { print_debug("Found character delimiter, parsing character...", "", self.logging, &self.output_dir); }
+                if self.mode > 1 {
+                    print_debug(
+                        "Found character delimiter, parsing character...",
+                        "",
+                        self.logging,
+                        &self.output_dir,
+                    );
+                }
                 // need to handle escape characters in characters, like '\uXXXXX'
                 self.parse_character()
-            },
-            '<' | '>' => { // handle <, <=, >, >=, >>, <<, >>=, <<=
+            }
+            '<' | '>' => {
+                // handle <, <=, >, >=, >>, <<, >>=, <<=
                 let c = self.current_char.unwrap();
                 let next_char = self.peek_char();
                 match next_char {
-                    Some('=') => { // <= or >=
+                    Some('=') => {
+                        // <= or >=
                         self.read_char();
                         if c == '<' {
                             Some(LexerToken {
                                 token_type: TokenType::LESSEQL,
                                 value: "<=".to_string(),
+                                metadata: Vec::new(),
                                 line: self.current_line,
                                 column: self.current_column,
                             })
@@ -313,18 +424,22 @@ impl Lexer {
                             Some(LexerToken {
                                 token_type: TokenType::GREATEREQL,
                                 value: ">=".to_string(),
+                                metadata: Vec::new(),
                                 line: self.current_line,
                                 column: self.current_column,
                             })
-                        } else { Some(LexerToken {
+                        } else {
+                            Some(LexerToken {
                                 token_type: TokenType::ERROR,
                                 value: format!("{c}{}", next_char.unwrap()).to_string(),
+                                metadata: Vec::new(),
                                 line: self.current_line,
                                 column: self.current_column,
-                            }) 
+                            })
                         } // This should not happen
-                    },
-                    Some('>') => { // >> or >>=
+                    }
+                    Some('>') => {
+                        // >> or >>=
                         self.read_char();
                         if c == '>' {
                             if self.peek_char() == Some('=') {
@@ -332,6 +447,7 @@ impl Lexer {
                                 return Some(LexerToken {
                                     token_type: TokenType::RIGHTSHIFTASSIGN,
                                     value: ">>=".to_string(),
+                                    metadata: Vec::new(),
                                     line: self.current_line,
                                     column: self.current_column,
                                 });
@@ -339,18 +455,22 @@ impl Lexer {
                             Some(LexerToken {
                                 token_type: TokenType::RIGHTSHIFT,
                                 value: ">>".to_string(),
+                                metadata: Vec::new(),
                                 line: self.current_line,
                                 column: self.current_column,
                             })
-                        } else { Some(LexerToken {
+                        } else {
+                            Some(LexerToken {
                                 token_type: TokenType::ERROR,
                                 value: format!("{c}{}", next_char.unwrap()).to_string(),
+                                metadata: Vec::new(),
                                 line: self.current_line,
                                 column: self.current_column,
                             })
                         } // This should not happen
-                    },
-                    Some('<') => { // << or <<=
+                    }
+                    Some('<') => {
+                        // << or <<=
                         self.read_char();
                         if c == '<' {
                             if self.peek_char() == Some('=') {
@@ -358,6 +478,7 @@ impl Lexer {
                                 return Some(LexerToken {
                                     token_type: TokenType::LEFTSHIFTASSIGN,
                                     value: "<<=".to_string(),
+                                    metadata: Vec::new(),
                                     line: self.current_line,
                                     column: self.current_column,
                                 });
@@ -365,22 +486,27 @@ impl Lexer {
                             Some(LexerToken {
                                 token_type: TokenType::LEFTSHIFT,
                                 value: "<<".to_string(),
+                                metadata: Vec::new(),
                                 line: self.current_line,
                                 column: self.current_column,
                             })
-                        } else { Some(LexerToken {
+                        } else {
+                            Some(LexerToken {
                                 token_type: TokenType::ERROR,
                                 value: format!("{c}{}", next_char.unwrap()).to_string(),
+                                metadata: Vec::new(),
                                 line: self.current_line,
                                 column: self.current_column,
                             })
                         } // This should not happen
-                    },
-                    _  => { // < or >
+                    }
+                    _ => {
+                        // < or >
                         if c == '<' {
                             Some(LexerToken {
                                 token_type: TokenType::LESS,
                                 value: "<".to_string(),
+                                metadata: Vec::new(),
                                 line: self.current_line,
                                 column: self.current_column,
                             })
@@ -388,125 +514,150 @@ impl Lexer {
                             Some(LexerToken {
                                 token_type: TokenType::GREATER,
                                 value: ">".to_string(),
+                                metadata: Vec::new(),
                                 line: self.current_line,
                                 column: self.current_column,
                             })
-                        } else { Some(LexerToken {
+                        } else {
+                            Some(LexerToken {
                                 token_type: TokenType::ERROR,
                                 value: c.to_string(),
+                                metadata: Vec::new(),
                                 line: self.current_line,
                                 column: self.current_column,
                             })
                         }
                     }
                 }
-            }, // handle <, <=, >, >=, >>, <<, >>=, <<=
-            '+' => { // handle a++, a + b, a += b
+            } // handle <, <=, >, >=, >>, <<, >>=, <<=
+            '+' => {
+                // handle a++, a + b, a += b
                 let next_char = self.peek_char();
                 match next_char {
-                    Some('+') => { // ++
+                    Some('+') => {
+                        // ++
                         self.read_char();
                         Some(LexerToken {
                             token_type: TokenType::INCREMENT,
                             value: "++".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
                             column: self.current_column,
                         })
-                    },
-                    Some('=') => { // +=
+                    }
+                    Some('=') => {
+                        // +=
                         self.read_char();
                         Some(LexerToken {
                             token_type: TokenType::ADDASSIGN,
                             value: "+=".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
                             column: self.current_column,
                         })
-                    },
-                    _ => { // +
+                    }
+                    _ => {
+                        // +
                         Some(LexerToken {
                             token_type: TokenType::PLUS,
                             value: "+".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
                             column: self.current_column,
                         })
                     }
                 }
-            }, // handle a++, a + b, a += b
-            '-' => { // handle a--, a - b, -a, ->, a -= b
+            } // handle a++, a + b, a += b
+            '-' => {
+                // handle a--, a - b, -a, ->, a -= b
                 let next_char = self.peek_char();
                 match next_char {
-                    Some('-') => { // -- 
+                    Some('-') => {
+                        // --
                         self.read_char();
                         Some(LexerToken {
                             token_type: TokenType::DECREMENT,
                             value: "--".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
                             column: self.current_column,
                         })
-                    },
-                    Some('>') => { // ->
+                    }
+                    Some('>') => {
+                        // ->
                         self.read_char();
                         Some(LexerToken {
                             token_type: TokenType::RIGHTARROW,
                             value: "->".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
                             column: self.current_column,
                         })
-                    },
-                    Some('=') => { // -=
+                    }
+                    Some('=') => {
+                        // -=
                         self.read_char();
                         Some(LexerToken {
                             token_type: TokenType::SUBASSIGN,
                             value: "-=".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
                             column: self.current_column,
                         })
-                    },
-                    _ => { // -
+                    }
+                    _ => {
+                        // -
                         Some(LexerToken {
                             token_type: TokenType::MINUS,
                             value: "-".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
                             column: self.current_column,
                         })
                     }
                 }
-            }, // handle a--, a - b, -a, ->, a -= b
-            '=' => { // handle a = b, ==, =>
+            } // handle a--, a - b, -a, ->, a -= b
+            '=' => {
+                // handle a = b, ==, =>
                 let next_char = self.peek_char();
                 match next_char {
-                    Some('=') => { // ==
+                    Some('=') => {
+                        // ==
                         self.read_char();
                         Some(LexerToken {
                             token_type: TokenType::EQL,
                             value: "==".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
                             column: self.current_column,
                         })
-                    },
-                    Some('>') => { // =>
+                    }
+                    Some('>') => {
+                        // =>
                         self.read_char();
                         Some(LexerToken {
                             token_type: TokenType::LAMBDA,
                             value: "=>".to_string(),
-                            line: self.current_line,
-                            column: self.current_column
-                        })
-                    }
-                    _ => {
-                        Some(LexerToken {
-                            token_type: TokenType::ASSIGN,
-                            value: "=".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
                             column: self.current_column,
                         })
                     }
+                    _ => Some(LexerToken {
+                        token_type: TokenType::ASSIGN,
+                        value: "=".to_string(),
+                        metadata: Vec::new(),
+                        line: self.current_line,
+                        column: self.current_column,
+                    }),
                 }
-            }, // handle a = b, ==, =>
-            '/' => { // handle //a, /* a */, a / b, a /= b
+            } // handle a = b, ==, =>
+            '/' => {
+                // handle //a, /* a */, a / b, a /= b
                 let next_char = self.peek_char();
                 match next_char {
-                    Some('/') => { // //
+                    Some('/') => {
+                        // //
                         self.read_char();
                         let mut content: String = "".to_string();
                         while let Some(c) = self.current_char {
@@ -521,11 +672,13 @@ impl Lexer {
                         Some(LexerToken {
                             token_type: TokenType::LINECOMMENT,
                             value: content,
+                            metadata: Vec::new(),
                             line: self.current_line,
-                            column: self.current_column
+                            column: self.current_column,
                         })
-                    },
-                    Some('*') => { // /* */
+                    }
+                    Some('*') => {
+                        // /* */
                         self.read_char();
                         let mut content: String = "".to_string();
                         while let Some(c) = self.current_char {
@@ -541,161 +694,164 @@ impl Lexer {
                         Some(LexerToken {
                             token_type: TokenType::BLOCKCOMMENT,
                             value: content,
+                            metadata: Vec::new(),
                             line: self.current_line,
-                            column: self.current_column
+                            column: self.current_column,
                         })
-                    },
-                    Some('=') => { // /=
+                    }
+                    Some('=') => {
+                        // /=
                         self.read_char();
                         Some(LexerToken {
                             token_type: TokenType::DIVASSIGN,
                             value: "/=".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
                             column: self.current_column,
                         })
-                    },
-                    _ => { // /
+                    }
+                    _ => {
+                        // /
                         Some(LexerToken {
                             token_type: TokenType::DIVIDE,
                             value: "/".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
                             column: self.current_column,
                         })
                     }
                 }
-            }, // handle //a, /* a */, a / b, a /= b
+            } // handle //a, /* a */, a / b, a /= b
             '*' => {
                 let next_char = self.peek_char();
                 match next_char {
-                    Some('=') => {
-                        Some(LexerToken {
-                            token_type: TokenType::STARASSIGN,
-                            value: "*=".to_string(),
-                            line: self.current_line,
-                            column: self.current_column
-                        })
-                    },
-                    _ => { 
-                        Some(LexerToken {
-                            token_type: TokenType::STAR,
-                            value: "*".to_string(),
-                            line: self.current_line,
-                            column: self.current_column
-                        })
-                    }
+                    Some('=') => Some(LexerToken {
+                        token_type: TokenType::STARASSIGN,
+                        value: "*=".to_string(),
+                        metadata: Vec::new(),
+                        line: self.current_line,
+                        column: self.current_column,
+                    }),
+                    _ => Some(LexerToken {
+                        token_type: TokenType::STAR,
+                        value: "*".to_string(),
+                        metadata: Vec::new(),
+                        line: self.current_line,
+                        column: self.current_column,
+                    }),
                 }
-            }, // handle a * b, a *= b, etc.
+            } // handle a * b, a *= b, etc.
             '!' => {
                 let next_char = self.peek_char();
                 match next_char {
-                    Some('=') => {
-                        Some(LexerToken {
-                            token_type: TokenType::BANGASSIGN,
-                            value: "!=".to_string(),
-                            line: self.current_line,
-                            column: self.current_column
-                        })
-                    },
-                    _ => {
-                        Some(LexerToken {
-                            token_type: TokenType::BANG,
-                            value: "!".to_string(),
-                            line: self.current_line,
-                            column: self.current_column
-                        })
-                    }
+                    Some('=') => Some(LexerToken {
+                        token_type: TokenType::BANGASSIGN,
+                        value: "!=".to_string(),
+                        metadata: Vec::new(),
+                        line: self.current_line,
+                        column: self.current_column,
+                    }),
+                    _ => Some(LexerToken {
+                        token_type: TokenType::BANG,
+                        value: "!".to_string(),
+                        metadata: Vec::new(),
+                        line: self.current_line,
+                        column: self.current_column,
+                    }),
                 }
-            }, // handle !a, a != b, etc.
+            } // handle !a, a != b, etc.
             '^' => {
                 let next_char = self.peek_char();
                 match next_char {
-                    Some('=') => {
-                        Some(LexerToken {
-                            token_type: TokenType::CARROTASSIGN,
-                            value: "^=".to_string(),
-                            line: self.current_line,
-                            column: self.current_column
-                        })
-                    },
-                    _ => {
-                        Some(LexerToken {
-                            token_type: TokenType::CARROT,
-                            value: "^".to_string(),
-                            line: self.current_line,
-                            column: self.current_column
-                        })
-                    }
+                    Some('=') => Some(LexerToken {
+                        token_type: TokenType::CARROTASSIGN,
+                        value: "^=".to_string(),
+                        metadata: Vec::new(),
+                        line: self.current_line,
+                        column: self.current_column,
+                    }),
+                    _ => Some(LexerToken {
+                        token_type: TokenType::CARROT,
+                        value: "^".to_string(),
+                        metadata: Vec::new(),
+                        line: self.current_line,
+                        column: self.current_column,
+                    }),
                 }
-            }, // handle a ^ b, a ^= b, etc.
+            } // handle a ^ b, a ^= b, etc.
             '|' => {
                 let next_char = self.peek_char();
                 match next_char {
-                    Some('=') => { // |=
+                    Some('=') => {
+                        // |=
                         Some(LexerToken {
                             token_type: TokenType::BITORASSIGN,
                             value: "|=".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
-                            column: self.current_column
+                            column: self.current_column,
                         })
                     }
-                    Some('|') => { // boolean or
+                    Some('|') => {
+                        // boolean or
                         Some(LexerToken {
                             token_type: TokenType::BOOLOR,
                             value: "||".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
-                            column: self.current_column
+                            column: self.current_column,
                         })
                     }
-                    _ => { // bitwise/lambda params
+                    _ => {
+                        // bitwise/lambda params
                         Some(LexerToken {
-                           token_type: TokenType::BAR,
-                           value: "|".to_string(),
-                           line: self.current_line,
-                           column: self.current_column
+                            token_type: TokenType::BAR,
+                            value: "|".to_string(),
+                            metadata: Vec::new(),
+                            line: self.current_line,
+                            column: self.current_column,
                         })
                     }
                 }
-            }, // handle a | b, a |= b, a || b, lambda parameters (| a: u32 |), etc.
+            } // handle a | b, a |= b, a || b, lambda parameters (| a: u32 |), etc.
             '&' => {
                 let next_char = self.peek_char();
                 match next_char {
-                   Some('=') => {
-                       Some(LexerToken {
-                           token_type: TokenType::BITANDASSIGN,
-                           value: "&=".to_string(),
-                           line: self.current_line,
-                           column: self.current_column
-                       })
-                   },
-                   Some('&') => {
-                       Some(LexerToken {
-                           token_type: TokenType::BOOLAND,
-                           value: "&&".to_string(),
-                           line: self.current_line,
-                           column: self.current_column
-                       })
-                   },
-                   _ => {
-                       Some(LexerToken {
-                           token_type: TokenType::AMPERSAND,
-                           value: "&".to_string(),
-                           line: self.current_line,
-                           column: self.current_column
-                       })
-                   }
+                    Some('=') => Some(LexerToken {
+                        token_type: TokenType::BITANDASSIGN,
+                        value: "&=".to_string(),
+                        metadata: Vec::new(),
+                        line: self.current_line,
+                        column: self.current_column,
+                    }),
+                    Some('&') => Some(LexerToken {
+                        token_type: TokenType::BOOLAND,
+                        value: "&&".to_string(),
+                        metadata: Vec::new(),
+                        line: self.current_line,
+                        column: self.current_column,
+                    }),
+                    _ => Some(LexerToken {
+                        token_type: TokenType::AMPERSAND,
+                        value: "&".to_string(),
+                        metadata: Vec::new(),
+                        line: self.current_line,
+                        column: self.current_column,
+                    }),
                 }
-            }, // handle a & b, a &= b, a && b, etc.
-            '@' => { Some(LexerToken {
-                    token_type: TokenType::ATSIGN, 
-                    value: "@".to_string(),
-                    line: self.current_line,
-                    column: self.current_column,
-                })
-            }, // handle pass by reference (@a)
+            } // handle a & b, a &= b, a && b, etc.
+            '@' => Some(LexerToken {
+                token_type: TokenType::ATSIGN,
+                value: "@".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // handle pass by reference (@a)
             '#' => {
                 let next_char = self.peek_char();
                 match next_char {
-                    Some('[') => { // annotations
+                    Some('[') => {
+                        // annotations
                         self.read_char(); // skip opening bracket
                         let line: usize = self.current_line;
                         let column: usize = self.current_column;
@@ -706,6 +862,7 @@ impl Lexer {
                                 self.read_char(); // Skip the closing bracket
                                 break;
                             } else {
+                                //TODO: need to push these values to a Vec<LexerToken>
                                 value.push(c);
                                 self.read_char();
                             }
@@ -714,157 +871,167 @@ impl Lexer {
                         Some(LexerToken {
                             token_type: TokenType::ANNOTATION,
                             value, //TODO: The inside of the annotations will need to be lexed and parsed
+                            metadata: Vec::new(),
                             line,
-                            column
-                        })
-                    },
-                    _ => { // could be used for custom operators?
-                        Some(LexerToken { 
-                            token_type: TokenType::HASH, 
-                            value: '#'.to_string(),
-                            line: self.current_line,
-                            column: self.current_column
+                            column,
                         })
                     }
-                }
-            }, // handle annotations like #[extern "..."], #[entry], etc.
-            '%' => {
-                let next_char = self.peek_char();
-                match next_char {
-                    Some('=') => { // %=
-                        self.read_char();
+                    _ => {
+                        // could be used for custom operators?
                         Some(LexerToken {
-                            token_type: TokenType::MODASSIGN,
-                            value: "/=".to_string(),
+                            token_type: TokenType::HASH,
+                            value: '#'.to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
                             column: self.current_column,
                         })
                     }
-                    _ => {
+                }
+            } // handle annotations like #[extern "..."], #[entry], etc.
+            '%' => {
+                let next_char = self.peek_char();
+                match next_char {
+                    Some('=') => {
+                        // %=
+                        self.read_char();
                         Some(LexerToken {
-                            token_type: TokenType::PERCENT,
-                            value: "%".to_string(),
+                            token_type: TokenType::MODASSIGN,
+                            value: "/=".to_string(),
+                            metadata: Vec::new(),
                             line: self.current_line,
-                            column: self.current_column
+                            column: self.current_column,
                         })
                     }
+                    _ => Some(LexerToken {
+                        token_type: TokenType::PERCENT,
+                        value: "%".to_string(),
+                        metadata: Vec::new(),
+                        line: self.current_line,
+                        column: self.current_column,
+                    }),
                 }
-            }, // handle a % b, a %= b, etc.
-            '~' => {
-                Some(LexerToken {
-                   token_type: TokenType::SQUIGGLE,
-                   value: "~".to_string(),
-                   line: self.current_line,
-                   column: self.current_column 
-                })
-            }, // handle ~a
-            '?' => { 
-                Some(LexerToken {
-                    token_type: TokenType::QUESTION, 
-                    value: "?".to_string(), 
-                    line: self.current_line, 
-                    column: self.current_column 
-                })
-            }, // idk what to use this for, but handle it anyways
-            ';' => { 
-                Some(LexerToken {
-                    token_type: TokenType::SEMICOLON, 
-                    value: ";".to_string(),
-                    line: self.current_line,
-                    column: self.current_column,
-                }) 
-            }, // end statements
-            ',' => { 
-                Some(LexerToken {
-                    token_type: TokenType::COMMA, 
-                    value: ",".to_string(),
-                    line: self.current_line,
-                    column: self.current_column,
-                })
-            }, // used for separating items in lists, function arguments, etc.
-            ':' => {
-                Some(LexerToken {
-                    token_type: TokenType::COLON, 
-                    value: ":".to_string(),
-                    line: self.current_line,
-                    column: self.current_column,
-                })
-            }, // used for type declarataions (a: u32)
-            '.' => {
-               Some(LexerToken {
-                    token_type: TokenType::DOT, 
-                    value: ".".to_string(),
-                    line: self.current_line,
-                    column: self.current_column,
-                })
-            }, // used for method calls (a.b()), field access (a.b), etc.
-            '(' => {
-                Some(LexerToken {
-                    token_type: TokenType::LEFTPAREN, 
-                    value: "(".to_string(),
-                    line: self.current_line,
-                    column: self.current_column,
-                })
-            }, // used for function calls (a()), grouping expressions ((a + b)), etc.
-            ')' => {
-                Some(LexerToken {
-                    token_type: TokenType::RIGHTPAREN, 
-                    value: ")".to_string(),
-                    line: self.current_line,
-                    column: self.current_column,
-                })
-            }, // used for closing function calls, grouping expressions, etc.
-            '{' => {
-                Some(LexerToken {
-                    token_type: TokenType::LEFTBRACE, 
-                    value: "{".to_string(),
-                    line: self.current_line,
-                    column: self.current_column,
-                })
-            }, // used for starting blocks of code (if, for, while, etc.) and string interpolation "{a + b}"
-            '}' => {
-                Some(LexerToken {
-                    token_type: TokenType::RIGHTBRACE, 
-                    value: "}".to_string(),
-                    line: self.current_line,
-                    column: self.current_column,
-                })
-            }, // used for closing blocks of code and string interpolation
-            '[' => {
-                Some(LexerToken {
-                    token_type: TokenType::LEFTBRACKET, 
-                    value: "[".to_string(),
-                    line: self.current_line,
-                    column: self.current_column,
-                })
-            }, // used for starting arrays and indexing
-            ']' => {
-                Some(LexerToken {
-                    token_type: TokenType::RIGHTBRACKET, 
-                    value: "]".to_string(),
-                    line: self.current_line,
-                    column: self.current_column,
-                })
-            }, // used for closing arrays and indexing
+            } // handle a % b, a %= b, etc.
+            '~' => Some(LexerToken {
+                token_type: TokenType::SQUIGGLE,
+                value: "~".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // handle ~a
+            '?' => Some(LexerToken {
+                token_type: TokenType::QUESTION,
+                value: "?".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // idk what to use this for, but handle it anyways
+            ';' => Some(LexerToken {
+                token_type: TokenType::SEMICOLON,
+                value: ";".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // end statements
+            ',' => Some(LexerToken {
+                token_type: TokenType::COMMA,
+                value: ",".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // used for separating items in lists, function arguments, etc.
+            ':' => Some(LexerToken {
+                token_type: TokenType::COLON,
+                value: ":".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // used for type declarataions (a: u32)
+            '.' => Some(LexerToken {
+                token_type: TokenType::DOT,
+                value: ".".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // used for method calls (a.b()), field access (a.b), etc.
+            '(' => Some(LexerToken {
+                token_type: TokenType::LEFTPAREN,
+                value: "(".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // used for function calls (a()), grouping expressions ((a + b)), etc.
+            ')' => Some(LexerToken {
+                token_type: TokenType::RIGHTPAREN,
+                value: ")".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // used for closing function calls, grouping expressions, etc.
+            '{' => Some(LexerToken {
+                token_type: TokenType::LEFTBRACE,
+                value: "{".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // used for starting blocks of code (if, for, while, etc.) and string interpolation "{a + b}"
+            '}' => Some(LexerToken {
+                token_type: TokenType::RIGHTBRACE,
+                value: "}".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // used for closing blocks of code and string interpolation
+            '[' => Some(LexerToken {
+                token_type: TokenType::LEFTBRACKET,
+                value: "[".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // used for starting arrays and indexing
+            ']' => Some(LexerToken {
+                token_type: TokenType::RIGHTBRACKET,
+                value: "]".to_string(),
+                metadata: Vec::new(),
+                line: self.current_line,
+                column: self.current_column,
+            }), // used for closing arrays and indexing
             '\n' => {
-                if self.mode > 1 { print_debug("Found newline...", "", self.logging, &self.output_dir); }
+                if self.mode > 1 {
+                    print_debug("Found newline...", "", self.logging, &self.output_dir);
+                }
                 Some(LexerToken {
                     token_type: TokenType::NEWLINE,
                     value: "\\n".to_string(),
+                    metadata: Vec::new(),
                     line: self.current_line,
                     column: self.current_column,
                 })
-            },
+            }
             ' ' | '\t' | '\r' => {
-                if self.mode > 1 { print_debug("Found whitespace, skipping...", "", self.logging, &self.output_dir); }
+                if self.mode > 1 {
+                    print_debug(
+                        "Found whitespace, skipping...",
+                        "",
+                        self.logging,
+                        &self.output_dir,
+                    );
+                }
                 self.read_char(); // Skip whitespace character
                 self.next_token() // Continue to the next character
-            },
+            }
             _ => {
-                if self.mode > 1 { print_debug("Found unknown character: ", &self.current_char.unwrap_or(' ').to_string(), self.logging, &self.output_dir); }
+                if self.mode > 1 {
+                    print_debug(
+                        "Found unknown character: ",
+                        &self.current_char.unwrap_or(' ').to_string(),
+                        self.logging,
+                        &self.output_dir,
+                    );
+                }
                 Some(LexerToken {
                     token_type: TokenType::UNKNOWN,
                     value: self.current_char.unwrap_or(' ').to_string(),
+                    metadata: Vec::new(),
                     line: self.current_line,
                     column: self.current_column,
                 }) // Return error token for unknown characters
@@ -873,7 +1040,9 @@ impl Lexer {
     }
 
     fn backtrack(&mut self) {
-        if self.mode > 1 { print_debug("Backtracking...", "", self.logging, &self.output_dir); }
+        if self.mode > 1 {
+            print_debug("Backtracking...", "", self.logging, &self.output_dir);
+        }
         if self.position == 0 {
             self.current_char = None;
         } else {
@@ -883,14 +1052,20 @@ impl Lexer {
         self.read_position -= 1;
         if self.current_column == 0 {
             self.current_line -= 1; // Decrement line number if at the start of a line
-            self.current_column = self.content[..self.position].chars().rev().take_while(|&c| c != '\n').count(); // Count characters until the last newline
+            self.current_column = self.content[..self.position]
+                .chars()
+                .rev()
+                .take_while(|&c| c != '\n')
+                .count(); // Count characters until the last newline
         } else {
             self.current_column -= 1; // Decrement column number
         }
     }
 
     fn parse_number(&mut self) -> Option<LexerToken> {
-        if self.mode > 1 { print_debug("Parsing number...", "", self.logging, &self.output_dir); }
+        if self.mode > 1 {
+            print_debug("Parsing number...", "", self.logging, &self.output_dir);
+        }
         let start_position = self.position;
         let mut value = String::new();
 
@@ -904,19 +1079,25 @@ impl Lexer {
             }
         }
 
-        if self.mode > 1 { print_debug("Parsed integer: ", &value, self.logging, &self.output_dir); }
-        Some(LexerToken { //TODO: Temporary, will need to handle different number types like float, hex, octal, etc.
+        if self.mode > 1 {
+            print_debug("Parsed integer: ", &value, self.logging, &self.output_dir);
+        }
+        Some(LexerToken {
+            //TODO: Temporary, will need to handle different number types like float, hex, octal, etc.
             token_type: TokenType::NUMBER,
             value,
+            metadata: Vec::new(),
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the number
         })
     }
-    
+
     //TODO: parse_hexadecimal, parse_octal, parse_binary, parse_float
 
-    fn parse_identifier(&mut self) -> Option<LexerToken> { 
-        if self.mode > 1 { print_debug("Parsing identifier...", "", self.logging, &self.output_dir); }
+    fn parse_identifier(&mut self) -> Option<LexerToken> {
+        if self.mode > 1 {
+            print_debug("Parsing identifier...", "", self.logging, &self.output_dir);
+        }
         let start_position = self.position;
         let mut value = String::new();
 
@@ -930,21 +1111,32 @@ impl Lexer {
             }
         }
 
-        if self.mode > 1 { print_debug("Parsed identifier: ", &value, self.logging, &self.output_dir); }
+        if self.mode > 1 {
+            print_debug(
+                "Parsed identifier: ",
+                &value,
+                self.logging,
+                &self.output_dir,
+            );
+        }
         Some(LexerToken {
             token_type: TokenType::IDENTIFIER,
             value,
+            metadata: Vec::new(),
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the identifier
         })
     }
 
-    fn parse_string(&mut self) -> Option<LexerToken> { //TODO: need to update to be able to handle escaping \{, \}, and string interpolation
-        if self.mode > 1 { print_debug("Parsing string...", "", self.logging, &self.output_dir); }
+    fn parse_string(&mut self) -> Option<LexerToken> {
+        //TODO: need to update to be able to handle escaping \{, \}, and string interpolation
+        if self.mode > 1 {
+            print_debug("Parsing string...", "", self.logging, &self.output_dir);
+        }
         let start_position = self.position;
         let mut value = String::new();
         self.read_char(); // Skip the opening quote
-        
+        let mut metadata = Vec::new();
         while let Some(c) = self.current_char {
             if c == '"' {
                 self.read_char(); // Skip the closing quote
@@ -955,21 +1147,26 @@ impl Lexer {
             }
         }
 
-        if self.mode > 1 { print_debug("Parsed string: ", &value, self.logging, &self.output_dir); }
+        if self.mode > 1 {
+            print_debug("Parsed string: ", &value, self.logging, &self.output_dir);
+        }
         Some(LexerToken {
             token_type: TokenType::STRING,
             value,
+            metadata,
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the string
         })
     }
 
-    fn parse_character(&mut self) -> Option<LexerToken> { 
-        if self.mode > 1 { print_debug("Parsing character...", "", self.logging, &self.output_dir); }
+    fn parse_character(&mut self) -> Option<LexerToken> {
+        if self.mode > 1 {
+            print_debug("Parsing character...", "", self.logging, &self.output_dir);
+        }
         let start_position = self.position;
         let mut value = String::new();
         self.read_char(); // Skip the opening quote
-        
+
         let no_escape = self.current_char != Some('\\');
 
         while let Some(c) = self.current_char {
@@ -987,10 +1184,13 @@ impl Lexer {
             std::process::exit(1);
         }
 
-        if self.mode > 1 { print_debug("Parsed character: ", &value, self.logging, &self.output_dir); }
+        if self.mode > 1 {
+            print_debug("Parsed character: ", &value, self.logging, &self.output_dir);
+        }
         Some(LexerToken {
             token_type: TokenType::CHARACTER,
             value,
+            metadata: Vec::new(),
             line: self.current_line,
             column: self.current_column - (self.position - start_position), // Adjust column based on the length of the character
         })

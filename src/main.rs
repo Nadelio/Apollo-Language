@@ -1,10 +1,10 @@
 pub mod lexer;
-pub mod util;
 pub mod tui;
+pub mod util;
 
 use lexer::Lexer;
-use util::{ ERR, SUCCESS, INFO, MSG, DEBUG, RESET, CLEAR };
 use std::path::Path;
+use util::{CLEAR, DEBUG, ERR, INFO, MSG, RESET, SUCCESS};
 
 const VERSION: &str = "0.0.0-A";
 
@@ -38,13 +38,13 @@ fn main() {
     let version_flag = args.contains(&"--version".to_string());
     if help_flag {
         println!("{MSG}Usage: apollo [options]\nOptions:\n  -f, --file <file>    Specify a file to compile\n  --dir <directory>    Specify a directory to compile\n  -d, --debug          Enable debug mode\n  -v, --verbose        Enable verbose mode\n  -q, --quiet          Disable all output except for errors\n  -o, --output <dir>   Specify the output directory (default: ./out)\n  -l, --lib <libs>     Specify libraries to pull and compile\n  -h, --help           Show this help message\n  --log                Enable logging, placed in <output dir>/logs/\n  --version            Show version number\nVersions are in the format <major>.<minor>.<patch>-<Alpha/Beta/Release>\n{RESET}");
-        return;  
+        return;
     }
     if version_flag {
         println!("{MSG}Apollo Compiler Version: {INFO}{VERSION}{RESET}");
         return;
     }
-    
+
     let logging = args.contains(&"--log".to_string());
 
     if file.is_some() && dir.is_some() {
@@ -63,7 +63,9 @@ fn main() {
     // debug mode does small things like print the file being compiled, verbose mode prints additional information
     // verbose is only available if debug mode is enabled, quiet mode is only available if debug mode is off
     if !debug && verbose {
-        eprintln!("{ERR}Error: {MSG}-v/--verbose flag requires -d/--debug flag to be enabled.{RESET}");
+        eprintln!(
+            "{ERR}Error: {MSG}-v/--verbose flag requires -d/--debug flag to be enabled.{RESET}"
+        );
         return;
     }
 
@@ -72,20 +74,28 @@ fn main() {
         std::process::exit(1);
     }
 
-    let output_dir = args.iter().find(|&x| x == "-o" || x == "--output").and_then(|x| {
-        let index = args.iter().position(|y| y == x)?;
-        if index + 1 < args.len() {
-            Some(args[index + 1].clone())
-        } else {
-            eprintln!("{ERR}Error: {MSG}-o/--output flag requires a directory argument.{RESET}");
-            std::process::exit(1);
-        }
-    }).unwrap_or_else(|| "./out/".to_string());
+    let output_dir = args
+        .iter()
+        .find(|&x| x == "-o" || x == "--output")
+        .and_then(|x| {
+            let index = args.iter().position(|y| y == x)?;
+            if index + 1 < args.len() {
+                Some(args[index + 1].clone())
+            } else {
+                eprintln!(
+                    "{ERR}Error: {MSG}-o/--output flag requires a directory argument.{RESET}"
+                );
+                std::process::exit(1);
+            }
+        })
+        .unwrap_or_else(|| "./out/".to_string());
 
     // create output folder if it doesn't exist
-    if !output_dir.is_empty() && let Err(e) = std::fs::create_dir_all(&output_dir) {
-            eprintln!("{ERR}Error: {MSG}Failed to create output directory: {output_dir}.{RESET} {e}");
-            std::process::exit(1);
+    if !output_dir.is_empty()
+        && let Err(e) = std::fs::create_dir_all(&output_dir)
+    {
+        eprintln!("{ERR}Error: {MSG}Failed to create output directory: {output_dir}.{RESET} {e}");
+        std::process::exit(1);
     }
 
     if logging {
@@ -102,52 +112,67 @@ fn main() {
             std::process::exit(1);
         });
         let log_content = format!("Apollo Compiler Version: {VERSION}\n");
-        std::io::Write::write_all(&mut log_file, log_content.as_bytes()).expect("Failed to write to log file");
+        std::io::Write::write_all(&mut log_file, log_content.as_bytes())
+            .expect("Failed to write to log file");
     }
 
-    // -l and --lib flags would be processed similarly, rn they are unsupported 
+    // -l and --lib flags would be processed similarly, rn they are unsupported
 
     // iterate through every file and send them to a compile task (thread pool, max 5 threads/tasks)
     // lexer -> parser -> compiler
 
     let mut mode: u8 = 0; // 0: quiet, 1: debug, 2: verbose
-    
-    if quiet { mode = 0; }
-    else if verbose { mode = 2; }
-    else if debug { mode = 1; }
+
+    if quiet {
+        mode = 0;
+    } else if verbose {
+        mode = 2;
+    } else if debug {
+        mode = 1;
+    }
 
     print!("{CLEAR}");
 
     if let Some(dir) = dir {
         let dir = unsanatized_args[dir + 1].clone();
-        
+
         let p = Path::new(&dir);
         if !p.is_dir() {
-            eprintln!("{ERR}Error: {MSG}{dir} does not exist in the current working directory.{RESET}");
+            eprintln!(
+                "{ERR}Error: {MSG}{dir} does not exist in the current working directory.{RESET}"
+            );
             std::process::exit(1);
         }
 
-        if mode > 0 { println!("{DEBUG}Compiling directory: {INFO}{dir}{RESET}"); }
-        
+        if mode > 0 {
+            println!("{DEBUG}Compiling directory: {INFO}{dir}{RESET}");
+        }
+
         // iterate over every valid file in the directory and compile to target
     } else if let Some(file) = file {
         let file = unsanatized_args[file + 1].clone(); // filepath
-       
+
         let p = Path::new(&file);
         if !p.exists() {
-               eprintln!("{ERR}Error: {MSG}{file} does not exist in the current working directory.{RESET}");
-                std::process::exit(1);
+            eprintln!(
+                "{ERR}Error: {MSG}{file} does not exist in the current working directory.{RESET}"
+            );
+            std::process::exit(1);
         }
 
-        if mode > 0 { println!("{DEBUG}Compiling file: {INFO}{file}{RESET}"); }
-        
+        if mode > 0 {
+            println!("{DEBUG}Compiling file: {INFO}{file}{RESET}");
+        }
+
         let result = Lexer::new(file, mode, logging, output_dir).begin();
         match result {
             Ok(_tokens) => {
-                if mode > 0 { println!("{SUCCESS}Lexing completed successfully.{RESET}"); }
+                if mode > 0 {
+                    println!("{SUCCESS}Lexing completed successfully.{RESET}");
+                }
                 //TODO: if logging flag, write tokens to logs/lexer_tokens.log file
                 //TODO: if logging flag, write parser_tree to logs/parser_tree.log file
-            },
+            }
             Err(e) => {
                 e.print();
                 std::process::exit(1);
