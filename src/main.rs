@@ -2,8 +2,11 @@ pub mod lexer;
 pub mod tui;
 pub mod util;
 
+use std::io::{self, Write};
+
 use lexer::Lexer;
 use std::path::Path;
+use std::process::Command;
 use util::{CLEAR, DEBUG, ERR, INFO, MSG, RESET, SUCCESS};
 
 const VERSION: &str = "0.0.0-A";
@@ -28,7 +31,42 @@ fn main() {
     // if no flags are found, then print the help message
     if args.len() < 2 {
         println!("{MSG}Usage: apollo [options]\nType 'apollo --help' for more information.{RESET}");
-        std::process::exit(0);
+        return;
+    }
+
+    if args[1] == "clean" {
+        let output = Command::new("rm").arg("./out").arg("-r").output();
+
+        match output {
+            Ok(o) => {
+                println!("{}", o.status);
+                io::stdout().write_all(&o.stdout).unwrap();
+                io::stderr().write_all(&o.stderr).unwrap();
+                println!(
+                    "{SUCCESS}Successfully cleaned the default Apollo output directory.{RESET}"
+                );
+            }
+            Err(e) => {
+                let retry = Command::new("cmd")
+                    .arg("/C")
+                    .arg("rmdir /s /q .\\out")
+                    .output();
+                match retry {
+                    Ok(r) => {
+                        println!("{INFO}Status: {}{RESET}", r.status);
+                        io::stdout().write_all(&r.stdout).unwrap();
+                        io::stderr().write_all(&r.stderr).unwrap();
+                        println!("{SUCCESS}Successfully cleaned the default Apollo output directory.{RESET}");
+                    }
+                    Err(er) => {
+                        println!(
+                            "{ERR}There was an issue while cleaning the output directory:{RESET}\n{er}"
+                        );
+                    }
+                }
+            }
+        }
+        return;
     }
 
     let file = args.iter().position(|x| x == "-f" || x == "--file");
@@ -37,7 +75,7 @@ fn main() {
     let help_flag = args.contains(&"-h".to_string()) || args.contains(&"--help".to_string());
     let version_flag = args.contains(&"--version".to_string());
     if help_flag {
-        println!("{MSG}Usage: apollo [options]\nOptions:\n  -f, --file <file>    Specify a file to compile\n  --dir <directory>    Specify a directory to compile\n  -d, --debug          Enable debug mode\n  -v, --verbose        Enable verbose mode\n  -q, --quiet          Disable all output except for errors\n  -o, --output <dir>   Specify the output directory (default: ./out)\n  -l, --lib <libs>     Specify libraries to pull and compile\n  -h, --help           Show this help message\n  --log                Enable logging, placed in <output dir>/logs/\n  --version            Show version number\nVersions are in the format <major>.<minor>.<patch>-<Alpha/Beta/Release>\n{RESET}");
+        println!("{MSG}Usage: apollo [options]\nOptions:\n  clean                Delete the output directory and it's contents.\n  -f, --file <file>    Specify a file to compile\n  --dir <directory>    Specify a directory to compile\n  -d, --debug          Enable debug mode\n  -v, --verbose        Enable verbose mode\n  -q, --quiet          Disable all output except for errors\n  -o, --output <dir>   Specify the output directory (default: ./out)\n  -l, --lib <libs>     Specify libraries to pull and compile\n  -h, --help           Show this help message\n  --log                Enable logging, placed in <output dir>/logs/\n  --version            Show version number\nVersions are in the format <major>.<minor>.<patch>-<Alpha/Beta/Release>\n{RESET}");
         return;
     }
     if version_flag {
