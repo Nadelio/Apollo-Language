@@ -692,6 +692,7 @@ impl Lexer {
                     Some('*') => {
                         // /* */
                         self.read_char();
+                        self.read_char();
                         let mut content: String = "".to_string();
                         while let Some(c) = self.current_char {
                             if c == '*' && self.peek_char() == Some('/') {
@@ -881,26 +882,26 @@ impl Lexer {
                 match next_char {
                     Some('[') => {
                         // annotations
+                        self.read_char(); // skip hash
                         self.read_char(); // skip opening bracket
                         let line: usize = self.current_line;
                         let column: usize = self.current_column;
-                        let mut value: String = "".to_string();
-
+                        let value: String = "#[{}]".to_string();
+                        let mut mdata: Vec<char> = Vec::new();
                         while let Some(c) = self.current_char {
                             if c == ']' {
                                 self.read_char(); // Skip the closing bracket
                                 break;
                             } else {
-                                //TODO: need to push these values to a Vec<LexerToken>
-                                value.push(c);
+                                mdata.push(c); // add all the inner characters to the metadata field for processing later
                                 self.read_char();
                             }
                         }
 
                         Some(LexerToken {
                             token_type: TokenType::ANNOTATION,
-                            value, //TODO: The inside of the annotations will need to be lexed and parsed
-                            metadata: Vec::new(),
+                            value,
+                            metadata: vec![mdata],
                             line,
                             column,
                         })

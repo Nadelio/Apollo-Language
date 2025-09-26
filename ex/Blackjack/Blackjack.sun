@@ -251,5 +251,5 @@ class Game {
 #[entry]
 fn game() -> Unit {
     var g: Game = new 2; // new blackjack game with 2 players
-    g start;
+    g start; /* start the game using keyword-like syntax sugar */
 }

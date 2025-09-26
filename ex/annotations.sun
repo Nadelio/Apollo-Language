@@ -1,0 +1,28 @@
+use stdlib;
+
+#[link: string]
+class String {
+	
+	//: repeats the string the specified number of times and returns the new string
+	fn repeat(times: usize) -> string {
+		var r: string = this.value; // access the associated primitive value
+		
+		var i: usize = 0;
+		for(@i, n => n < times) {
+			r.append(this.value);
+		}
+		
+		return r;
+	}
+}
+
+#[extern: "stdio.printf"]
+fn printf(regex: const string, ...data: Any) -> Unit; // no explicit implementation in Apollo for C external functions
+
+#[entry]
+fn main() { // not necessary to define Unit return type
+	var s: string = "tweet ";
+	s = s.repeat(3); // "tweet tweet tweet tweet "
+	printf("%s\n", s); // use printf
+}
+

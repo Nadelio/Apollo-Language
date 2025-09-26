@@ -46,7 +46,7 @@ fn main() {
                     "{SUCCESS}Successfully cleaned the default Apollo output directory.{RESET}"
                 );
             }
-            Err(e) => {
+            Err(_e) => {
                 let retry = Command::new("cmd")
                     .arg("/C")
                     .arg("rmdir /s /q .\\out")
@@ -218,6 +218,5 @@ fn main() {
         }
     } else {
         eprintln!("{ERR}Error: {MSG}Encountered an unexpected compiler state, quitting...{RESET}");
-        std::process::exit(1);
     }
 }
