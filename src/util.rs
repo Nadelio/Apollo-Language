@@ -1,49 +1,54 @@
 use std::io::Write;
 
 pub struct ApolloError {
-    message: String,
-    index: Option<usize>,
-    additional_info: Option<String>,
-    additional_data: Option<usize>
+	message: String,
+	index: Option<usize>,
+	additional_info: Option<String>,
+	additional_data: Option<usize>,
 }
 
 impl ApolloError {
-    pub fn new(message: String, index: Option<usize>, additional_info: Option<String>, additional_data: Option<usize>) -> Self {
-        ApolloError {
-            message,
-            index,
-            additional_info,
-            additional_data
-        }
-    }
+	pub fn new(
+		message: String,
+		index: Option<usize>,
+		additional_info: Option<String>,
+		additional_data: Option<usize>,
+	) -> Self {
+		ApolloError {
+			message,
+			index,
+			additional_info,
+			additional_data,
+		}
+	}
 
-    pub fn to_string(&self) -> String {
-        let mut error_message = format!("{}Error: {}{}", ERR, MSG, self.message);
-        if let Some(index) = self.index {
-            error_message.push_str(&format!("{} at index {}{}",ERR, INFO, index));
-        }
-        error_message.push_str(RESET);
-        // additional data and info currently unused
-        error_message
-    }
+	pub fn to_string(&self) -> String {
+		let mut error_message = format!("{}Error: {}{}", ERR, MSG, self.message);
+		if let Some(index) = self.index {
+			error_message.push_str(&format!("{} at index {}{}", ERR, INFO, index));
+		}
+		error_message.push_str(RESET);
+		// additional data and info currently unused
+		error_message
+	}
 
-    pub fn print(&self) {
-        eprintln!("{}", self.to_string());
-    }
+	pub fn print(&self) {
+		eprintln!("{}", self.to_string());
+	}
 }
 
 #[inline(always)]
 pub fn print_debug(message: &str, info: &str, log: bool, output_dir: &str) {
-    println!("{DEBUG}{message}{INFO}{info}{RESET}");
-    if log {
-        let log_file_path = format!("{output_dir}/logs/debug.log");
-        let mut log_file = std::fs::OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open(log_file_path)
-            .expect("Failed to open log file");
-        writeln!(log_file, "{message}{info}").expect("{ERROR}Failed to write to log file{RESET}");
-    }
+	println!("{DEBUG}{message}{INFO}{info}{RESET}");
+	if log {
+		let log_file_path = format!("{output_dir}/logs/debug.log");
+		let mut log_file = std::fs::OpenOptions::new()
+			.append(true)
+			.create(true)
+			.open(log_file_path)
+			.expect("Failed to open log file");
+		writeln!(log_file, "{message}{info}").expect("{ERROR}Failed to write to log file{RESET}");
+	}
 }
 
 pub const ERR: &str = "\u{1b}[31m";
