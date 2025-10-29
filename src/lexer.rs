@@ -1132,7 +1132,7 @@ impl Lexer {
 			print_debug("Value: ", &value, self.logging, &self.output_dir);
 		}
 
-		if value.starts_with('0') && !value.contains('.') {
+		if value.starts_with('0') && !value.contains('.') && value.len() > 2 {
 			match value.chars().nth(1) {
 				Some('x') => {
 					if self.mode > 1 {
@@ -1261,6 +1261,18 @@ impl Lexer {
 				line: self.current_line,
 				column: self.current_column - (self.position - start_position),
 			});
+		}
+
+		for c in value.chars() {
+			if !c.is_ascii_digit() {
+				return Some(LexerToken {
+					token_type: TokenType::ERROR,
+					value,
+					metadata: Vec::new(),
+					line: self.current_line,
+					column: self.current_column - (self.position - start_position),
+				});
+			}
 		}
 
 		if self.mode > 1 {
