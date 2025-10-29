@@ -676,7 +676,7 @@ impl Lexer {
 								continue;
 							}
 							if c == '\n' {
-								self.read_char();
+								// self.read_char();
 								break;
 							} else {
 								print_debug(
@@ -1100,15 +1100,11 @@ impl Lexer {
 		}
 	}
 
-	fn is_hexadecimal_digit(c: char) -> bool {
-		c >= 'A' || c <= 'F' || c >= 'a' || c <= 'f'
-	}
-
 	fn is_float_digit(c: char) -> bool {
 		c == '.' || c == 'f'
 	}
 	fn is_octal_digit(c: char) -> bool {
-		c >= '0' || c <= '7'
+		('0'..='7').contains(&c)
 	}
 	fn is_binary_digit(c: char) -> bool {
 		c == '0' || c == '1'
@@ -1122,8 +1118,7 @@ impl Lexer {
 		let mut value = String::new();
 
 		while let Some(c) = self.current_char {
-			if c.is_ascii_digit() || Self::is_hexadecimal_digit(c) || Self::is_float_digit(c) || c != '\n'
-			{
+			if c.is_ascii_hexdigit() || Self::is_float_digit(c) || c == 'o' || c == 'x' || c == 'b' {
 				// if number, add to number buffer and go to next char
 				value.push(c);
 				self.read_char();
@@ -1133,7 +1128,9 @@ impl Lexer {
 			}
 		}
 
-		//TODO: add support for float literals: X.Xf
+		if self.mode > 1 {
+			print_debug("Value: ", &value, self.logging, &self.output_dir);
+		}
 
 		if value.starts_with('0') {
 			if !value.contains('.') {
@@ -1141,15 +1138,15 @@ impl Lexer {
 					Some('x') => {
 						if self.mode > 1 {
 							print_debug(
-								"Found hexadecimal number",
+								"Found hexadecimal number ",
 								&value,
 								self.logging,
 								&self.output_dir,
 							);
 						}
 						// check if all digits are within hexadecimal range then return hexadecimal number
-						for c in value.chars() {
-							if !c.is_ascii_digit() || !Self::is_hexadecimal_digit(c) {
+						for c in value[2..].chars() {
+							if !c.is_ascii_hexdigit() {
 								return Some(LexerToken {
 									token_type: TokenType::ERROR,
 									value,
@@ -1171,9 +1168,14 @@ impl Lexer {
 					Some('o') => {
 						// check if all digits are under 8 then return octal number
 						if self.mode > 1 {
-							print_debug("Found octal number", &value, self.logging, &self.output_dir);
+							print_debug(
+								"Found octal number ",
+								&value,
+								self.logging,
+								&self.output_dir,
+							);
 						}
-						for c in value.chars() {
+						for c in value[2..].chars() {
 							if !Self::is_octal_digit(c) {
 								return Some(LexerToken {
 									token_type: TokenType::ERROR,
@@ -1196,13 +1198,13 @@ impl Lexer {
 						// check if all digits are 0 or 1 then return binary number
 						if self.mode > 1 {
 							print_debug(
-								"Found binary number",
+								"Found binary number ",
 								&value,
 								self.logging,
 								&self.output_dir,
 							);
 						}
-						for c in value.chars() {
+						for c in value[2..].chars() {
 							if !Self::is_binary_digit(c) {
 								return Some(LexerToken {
 									token_type: TokenType::ERROR,
@@ -1225,13 +1227,14 @@ impl Lexer {
 						// do nothing
 					}
 				}
-			} else if value.ends_with('f') {
+			}
+			if value.ends_with('f') {
 				if self.mode > 1 {
-					print_debug("Found float", &value, self.logging, &self.output_dir);
+					print_debug("Found float ", &value, self.logging, &self.output_dir);
 				}
 				let mut point_found = false;
-				for c in value.chars() {
-					if !c.is_ascii_digit() || !Self::is_float_digit(c) {
+				for c in value[..value.len() - 1].chars() {
+					if !c.is_ascii_digit() && c != '.' {
 						return Some(LexerToken {
 							token_type: TokenType::ERROR,
 							value,
@@ -1240,9 +1243,7 @@ impl Lexer {
 							column: self.current_column - (self.position - start_position),
 						});
 					}
-					if c == '.' && !point_found {
-						point_found = true;
-					} else if point_found {
+					if c == '.' && point_found {
 						return Some(LexerToken {
 							token_type: TokenType::ERROR,
 							value,
@@ -1250,6 +1251,8 @@ impl Lexer {
 							line: self.current_line,
 							column: self.current_column - (self.position - start_position),
 						});
+					} else if c == '.' {
+						point_found = true;
 					}
 				}
 				return Some(LexerToken {
