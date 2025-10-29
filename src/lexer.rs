@@ -13,6 +13,8 @@ pub enum TokenType {
 	NUMBER,
 	HEXADECIMAL,
 	OCTAL,
+	BINARY,
+	FLOAT,
 	IDENTIFIER,
 	STRING,
 	CHARACTER,
@@ -80,6 +82,8 @@ impl Display for TokenType {
 			TokenType::NUMBER => write!(f, "NUMBER"),
 			TokenType::HEXADECIMAL => write!(f, "HEXADECIMAL"),
 			TokenType::OCTAL => write!(f, "OCTAL"),
+			TokenType::BINARY => write!(f, "BINARY"),
+			TokenType::FLOAT => write!(f, "FLOAT"),
 			TokenType::IDENTIFIER => write!(f, "IDENTIFIER"),
 			TokenType::STRING => write!(f, "STRING"),
 			TokenType::CHARACTER => write!(f, "CHARACTER"),
@@ -1106,6 +1110,9 @@ impl Lexer {
 	fn is_octal_digit(c: char) -> bool {
 		c >= '0' || c <= '7'
 	}
+	fn is_binary_digit(c: char) -> bool {
+		c == '0' || c == '1'
+	}
 
 	fn parse_number(&mut self) -> Option<LexerToken> {
 		if self.mode > 1 {
@@ -1115,7 +1122,8 @@ impl Lexer {
 		let mut value = String::new();
 
 		while let Some(c) = self.current_char {
-			if c.is_ascii_digit() || Self::is_hexadecimal_digit(c) || Self::is_float_digit(c) {
+			if c.is_ascii_digit() || Self::is_hexadecimal_digit(c) || Self::is_float_digit(c) || c != '\n'
+			{
 				// if number, add to number buffer and go to next char
 				value.push(c);
 				self.read_char();
@@ -1131,6 +1139,14 @@ impl Lexer {
 			if !value.contains('.') {
 				match value.chars().nth(1) {
 					Some('x') => {
+						if self.mode > 1 {
+							print_debug(
+								"Found hexadecimal number",
+								&value,
+								self.logging,
+								&self.output_dir,
+							);
+						}
 						// check if all digits are within hexadecimal range then return hexadecimal number
 						for c in value.chars() {
 							if !c.is_ascii_digit() || !Self::is_hexadecimal_digit(c) {
@@ -1154,6 +1170,9 @@ impl Lexer {
 					}
 					Some('o') => {
 						// check if all digits are under 8 then return octal number
+						if self.mode > 1 {
+							print_debug("Found octal number", &value, self.logging, &self.output_dir);
+						}
 						for c in value.chars() {
 							if !Self::is_octal_digit(c) {
 								return Some(LexerToken {
@@ -1175,21 +1194,66 @@ impl Lexer {
 					}
 					Some('b') => {
 						// check if all digits are 0 or 1 then return binary number
-					}
-					None => {
-						// do nothing
+						if self.mode > 1 {
+							print_debug(
+								"Found binary number",
+								&value,
+								self.logging,
+								&self.output_dir,
+							);
+						}
+						for c in value.chars() {
+							if !Self::is_binary_digit(c) {
+								return Some(LexerToken {
+									token_type: TokenType::ERROR,
+									value,
+									metadata: Vec::new(),
+									line: self.current_line,
+									column: self.current_column - (self.position - start_position),
+								});
+							}
+						}
+						return Some(LexerToken {
+							token_type: TokenType::BINARY,
+							value,
+							metadata: Vec::new(),
+							line: self.current_line,
+							column: self.current_column - (self.position - start_position),
+						});
 					}
 					_ => {
 						// do nothing
 					}
 				}
-			}
-			if value.ends_with('f') {
-				// return float
-			} else {
-				// if no f and . error
+			} else if value.ends_with('f') {
+				if self.mode > 1 {
+					print_debug("Found float", &value, self.logging, &self.output_dir);
+				}
+				let mut point_found = false;
+				for c in value.chars() {
+					if !c.is_ascii_digit() || !Self::is_float_digit(c) {
+						return Some(LexerToken {
+							token_type: TokenType::ERROR,
+							value,
+							metadata: Vec::new(),
+							line: self.current_line,
+							column: self.current_column - (self.position - start_position),
+						});
+					}
+					if c == '.' && !point_found {
+						point_found = true;
+					} else if point_found {
+						return Some(LexerToken {
+							token_type: TokenType::ERROR,
+							value,
+							metadata: Vec::new(),
+							line: self.current_line,
+							column: self.current_column - (self.position - start_position),
+						});
+					}
+				}
 				return Some(LexerToken {
-					token_type: TokenType::ERROR,
+					token_type: TokenType::FLOAT,
 					value,
 					metadata: Vec::new(),
 					line: self.current_line,
@@ -1202,16 +1266,13 @@ impl Lexer {
 			print_debug("Parsed integer: ", &value, self.logging, &self.output_dir);
 		}
 		Some(LexerToken {
-			//TODO: Temporary, will need to handle different number types like float, hex, octal, etc.
 			token_type: TokenType::NUMBER,
 			value,
 			metadata: Vec::new(),
 			line: self.current_line,
-			column: self.current_column - (self.position - start_position), // Adjust column based on the length of the number
+			column: self.current_column - (self.position - start_position),
 		})
 	}
-
-	//TODO: parse_hexadecimal, parse_octal, parse_binary, parse_float
 
 	fn parse_identifier(&mut self) -> Option<LexerToken> {
 		if self.mode > 1 {
