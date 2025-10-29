@@ -1132,137 +1132,135 @@ impl Lexer {
 			print_debug("Value: ", &value, self.logging, &self.output_dir);
 		}
 
-		if value.starts_with('0') {
-			if !value.contains('.') {
-				match value.chars().nth(1) {
-					Some('x') => {
-						if self.mode > 1 {
-							print_debug(
-								"Found hexadecimal number ",
-								&value,
-								self.logging,
-								&self.output_dir,
-							);
-						}
-						// check if all digits are within hexadecimal range then return hexadecimal number
-						for c in value[2..].chars() {
-							if !c.is_ascii_hexdigit() {
-								return Some(LexerToken {
-									token_type: TokenType::ERROR,
-									value,
-									metadata: Vec::new(),
-									line: self.current_line,
-									column: self.current_column - (self.position - start_position),
-								});
-							}
-						}
-						// reach here when everything succeeds
-						return Some(LexerToken {
-							token_type: TokenType::HEXADECIMAL,
-							value,
-							metadata: Vec::new(),
-							line: self.current_line,
-							column: self.current_column - (self.position - start_position),
-						});
+		if value.starts_with('0') && !value.contains('.') {
+			match value.chars().nth(1) {
+				Some('x') => {
+					if self.mode > 1 {
+						print_debug(
+							"Found hexadecimal number ",
+							&value,
+							self.logging,
+							&self.output_dir,
+						);
 					}
-					Some('o') => {
-						// check if all digits are under 8 then return octal number
-						if self.mode > 1 {
-							print_debug(
-								"Found octal number ",
-								&value,
-								self.logging,
-								&self.output_dir,
-							);
+					// check if all digits are within hexadecimal range then return hexadecimal number
+					for c in value[2..].chars() {
+						if !c.is_ascii_hexdigit() {
+							return Some(LexerToken {
+								token_type: TokenType::ERROR,
+								value,
+								metadata: Vec::new(),
+								line: self.current_line,
+								column: self.current_column - (self.position - start_position),
+							});
 						}
-						for c in value[2..].chars() {
-							if !Self::is_octal_digit(c) {
-								return Some(LexerToken {
-									token_type: TokenType::ERROR,
-									value,
-									metadata: Vec::new(),
-									line: self.current_line,
-									column: self.current_column - (self.position - start_position),
-								});
-							}
-						}
-						return Some(LexerToken {
-							token_type: TokenType::OCTAL,
-							value,
-							metadata: Vec::new(),
-							line: self.current_line,
-							column: self.current_column - (self.position - start_position),
-						});
 					}
-					Some('b') => {
-						// check if all digits are 0 or 1 then return binary number
-						if self.mode > 1 {
-							print_debug(
-								"Found binary number ",
-								&value,
-								self.logging,
-								&self.output_dir,
-							);
-						}
-						for c in value[2..].chars() {
-							if !Self::is_binary_digit(c) {
-								return Some(LexerToken {
-									token_type: TokenType::ERROR,
-									value,
-									metadata: Vec::new(),
-									line: self.current_line,
-									column: self.current_column - (self.position - start_position),
-								});
-							}
-						}
-						return Some(LexerToken {
-							token_type: TokenType::BINARY,
-							value,
-							metadata: Vec::new(),
-							line: self.current_line,
-							column: self.current_column - (self.position - start_position),
-						});
+					// reach here when everything succeeds
+					return Some(LexerToken {
+						token_type: TokenType::HEXADECIMAL,
+						value,
+						metadata: Vec::new(),
+						line: self.current_line,
+						column: self.current_column - (self.position - start_position),
+					});
+				}
+				Some('o') => {
+					// check if all digits are under 8 then return octal number
+					if self.mode > 1 {
+						print_debug(
+							"Found octal number ",
+							&value,
+							self.logging,
+							&self.output_dir,
+						);
 					}
-					_ => {
-						// do nothing
+					for c in value[2..].chars() {
+						if !Self::is_octal_digit(c) {
+							return Some(LexerToken {
+								token_type: TokenType::ERROR,
+								value,
+								metadata: Vec::new(),
+								line: self.current_line,
+								column: self.current_column - (self.position - start_position),
+							});
+						}
 					}
+					return Some(LexerToken {
+						token_type: TokenType::OCTAL,
+						value,
+						metadata: Vec::new(),
+						line: self.current_line,
+						column: self.current_column - (self.position - start_position),
+					});
+				}
+				Some('b') => {
+					// check if all digits are 0 or 1 then return binary number
+					if self.mode > 1 {
+						print_debug(
+							"Found binary number ",
+							&value,
+							self.logging,
+							&self.output_dir,
+						);
+					}
+					for c in value[2..].chars() {
+						if !Self::is_binary_digit(c) {
+							return Some(LexerToken {
+								token_type: TokenType::ERROR,
+								value,
+								metadata: Vec::new(),
+								line: self.current_line,
+								column: self.current_column - (self.position - start_position),
+							});
+						}
+					}
+					return Some(LexerToken {
+						token_type: TokenType::BINARY,
+						value,
+						metadata: Vec::new(),
+						line: self.current_line,
+						column: self.current_column - (self.position - start_position),
+					});
+				}
+				_ => {
+					// do nothing
 				}
 			}
-			if value.ends_with('f') {
-				if self.mode > 1 {
-					print_debug("Found float ", &value, self.logging, &self.output_dir);
-				}
-				let mut point_found = false;
-				for c in value[..value.len() - 1].chars() {
-					if !c.is_ascii_digit() && c != '.' {
-						return Some(LexerToken {
-							token_type: TokenType::ERROR,
-							value,
-							metadata: Vec::new(),
-							line: self.current_line,
-							column: self.current_column - (self.position - start_position),
-						});
-					}
-					if c == '.' && point_found {
-						return Some(LexerToken {
-							token_type: TokenType::ERROR,
-							value,
-							metadata: Vec::new(),
-							line: self.current_line,
-							column: self.current_column - (self.position - start_position),
-						});
-					} else if c == '.' {
-						point_found = true;
-					}
-				}
-				return Some(LexerToken {
-					token_type: TokenType::FLOAT,
-					value,
-					metadata: Vec::new(),
-					line: self.current_line,
-					column: self.current_column - (self.position - start_position),
-				});
+		}
+		if value.ends_with('f') {
+			if self.mode > 1 {
+				print_debug("Found float ", &value, self.logging, &self.output_dir);
 			}
+			let mut point_found = false;
+			for c in value[..value.len() - 1].chars() {
+				if !c.is_ascii_digit() && c != '.' {
+					return Some(LexerToken {
+						token_type: TokenType::ERROR,
+						value,
+						metadata: Vec::new(),
+						line: self.current_line,
+						column: self.current_column - (self.position - start_position),
+					});
+				}
+				if c == '.' && point_found {
+					return Some(LexerToken {
+						token_type: TokenType::ERROR,
+						value,
+						metadata: Vec::new(),
+						line: self.current_line,
+						column: self.current_column - (self.position - start_position),
+					});
+				} else if c == '.' {
+					point_found = true;
+				}
+			}
+			return Some(LexerToken {
+				token_type: TokenType::FLOAT,
+				value,
+				metadata: Vec::new(),
+				line: self.current_line,
+				column: self.current_column - (self.position - start_position),
+			});
 		}
 
 		if self.mode > 1 {
