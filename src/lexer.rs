@@ -160,11 +160,19 @@ impl Display for LexerToken {
 		if !self.metadata.is_empty() {
 			additional_data.push_str(&format!("\nMetadata: {:#?}", self.metadata));
 		}
-		write!(
-			f,
-			"{}: {} (Line: {}, Column: {}){}",
-			self.token_type, self.value, self.line, self.column, additional_data
-		)
+		if matches!(self.token_type, TokenType::ERROR) {
+			write!(
+				f,
+				"{}{}{}: {} (Line: {}, Column: {}){}",
+				ERR, self.token_type, INFO, self.value, self.line, self.column, additional_data
+			)
+		} else {
+			write!(
+				f,
+				"{}: {} (Line: {}, Column: {}){}",
+				self.token_type, self.value, self.line, self.column, additional_data
+			)
+		}
 	}
 }
 
