@@ -9,6 +9,7 @@ use util::ApolloError;
 use util::{DEBUG, ERR, INFO, MSG, RESET, SUCCESS};
 use util::{DOWN, LEFT, RIGHT, UP};
 
+#[derive(Clone)]
 pub enum TokenType {
 	NUMBER,
 	HEXADECIMAL,
@@ -146,6 +147,7 @@ impl Display for TokenType {
 	}
 }
 
+#[derive(Clone)]
 pub struct LexerToken {
 	pub token_type: TokenType,
 	pub value: String,

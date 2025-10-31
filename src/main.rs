@@ -1,10 +1,12 @@
 pub mod lexer;
+pub mod parser;
 pub mod tui;
 pub mod util;
 
 use std::io::{self, Write};
 
 use lexer::Lexer;
+use parser::Parser;
 use std::path::Path;
 use std::process::Command;
 use util::{CLEAR, DEBUG, ERR, INFO, MSG, RESET, SUCCESS};
