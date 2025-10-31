@@ -190,13 +190,25 @@ fn main() {
 			println!("{DEBUG}Compiling file: {INFO}{file}{RESET}");
 		}
 
-		let result = Lexer::new(file, mode, logging, output_dir).begin();
+		let result = Lexer::new(file, mode, logging, output_dir.clone()).begin();
 		match result {
-			Ok(_tokens) => {
+			Ok(tokens) => {
 				if mode > 0 {
 					println!("{SUCCESS}Lexing completed successfully.{RESET}");
 				}
-				//TODO: if logging flag, write tokens to logs/lexer_tokens.log file
+				if logging {
+					let mut log_file = std::fs::OpenOptions::new()
+						.write(true)
+						.create(true)
+						.open(format!("{}/logs/lexer_tokens.log", output_dir.clone()))
+						.unwrap_or_else(|e| {
+							panic!("{ERR}Failed to open {INFO}lexer_tokens.log{ERR} file: {e}{RESET}")
+						});
+					writeln!(log_file, "{tokens:#?}").unwrap_or_else(|e| {
+						panic!("{ERR}Failed to write to {INFO}lexer_tokens.log{ERR} file:\n\t{e}{RESET}")
+					});
+					println!("{SUCCESS}Logged lexer tokens to {INFO}lexer_tokens.log{SUCCESS} file{RESET}");
+				}
 				//TODO: if logging flag, write parser_tree to logs/parser_tree.log file
 			}
 			Err(e) => {

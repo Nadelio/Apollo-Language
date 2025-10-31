@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use crate::tui;
 use crate::util;
@@ -180,6 +180,24 @@ impl Default for LexerToken {
 	}
 }
 
+impl Debug for LexerToken {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		if self.metadata.is_empty() {
+			write!(
+				f,
+				"LexerToken: {{\n\t{},\n\t{},\n\t(Line: {}, Column: {})\n}}",
+				self.token_type, self.value, self.line, self.column
+			)
+		} else {
+			write!(
+				f,
+				"LexerToken: {{\n\t{},\n\t{},\n\t{:#?},\n\t(Line: {}, Column: {})\n}}",
+				self.token_type, self.value, self.metadata, self.line, self.column
+			)
+		}
+	}
+}
+
 pub struct Lexer {
 	filepath: String,
 	mode: u8,                // 0: quiet, 1: debug, 2: verbose
@@ -187,7 +205,7 @@ pub struct Lexer {
 	output_dir: String,      // Directory for output files and logs
 	loading_bar: LoadingBar, // Loading bar for visual feedback
 
-	//TODO: Additional fields for lexer state here
+	//Additional private fields for lexer state
 	content: String,            // The content of the file being lexed
 	position: usize,            // Current position in the content
 	read_position: usize,       // Position of the character being read
